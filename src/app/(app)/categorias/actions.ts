@@ -7,15 +7,11 @@ import { back } from "@/lib/flash";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Informe o nome da categoria.").max(60),
-  kind: z.enum(["income", "expense"]),
 });
 
 export async function createCategory(formData: FormData) {
   const { supabase } = await requireUser();
-  const parsed = schema.safeParse({
-    name: formData.get("name") ?? "",
-    kind: formData.get("kind"),
-  });
+  const parsed = schema.safeParse({ name: formData.get("name") ?? "" });
   if (!parsed.success) back("/categorias", "erro", parsed.error.issues[0].message);
 
   const { error } = await supabase.from("categories").insert(parsed.data);
@@ -38,7 +34,7 @@ export async function deleteCategory(formData: FormData) {
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) back("/categorias", "erro", "Categoria inválida.");
 
-  // Lançamentos que usavam a categoria ficam sem categoria (on delete set null).
+  // Lançamentos ficam sem categoria; regras que apontavam para ela são apagadas.
   const { error } = await supabase.from("categories").delete().eq("id", id.data);
   if (error) back("/categorias", "erro", "Não foi possível excluir a categoria.");
 

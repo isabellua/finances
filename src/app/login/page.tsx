@@ -1,3 +1,4 @@
+import { btnGhost, btnPrimary, inputCls } from "@/components/ui";
 import { signIn, signUp } from "./actions";
 
 export default async function LoginPage({
@@ -9,7 +10,7 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <h1 className="text-2xl font-semibold">Finanças</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-emerald-700">Finanças</h1>
 
       {erro && <p role="alert" className="rounded bg-red-100 p-3 text-sm text-red-800">{erro}</p>}
       {ok && <p role="status" className="rounded bg-green-100 p-3 text-sm text-green-800">{ok}</p>}
@@ -22,7 +23,7 @@ export default async function LoginPage({
             type="email"
             autoComplete="email"
             required
-            className="rounded border border-zinc-300 bg-white p-2 text-base text-black"
+            className={inputCls}
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -33,18 +34,18 @@ export default async function LoginPage({
             autoComplete="current-password"
             minLength={8}
             required
-            className="rounded border border-zinc-300 bg-white p-2 text-base text-black"
+            className={inputCls}
           />
         </label>
         <button
           formAction={signIn}
-          className="rounded bg-emerald-700 p-2 font-medium text-white"
+          className={btnPrimary}
         >
           Entrar
         </button>
         <button
           formAction={signUp}
-          className="rounded border border-zinc-400 p-2 font-medium"
+          className={`${btnGhost} py-2.5 text-base`}
         >
           Criar conta
         </button>

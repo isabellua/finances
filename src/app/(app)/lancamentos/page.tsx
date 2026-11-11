@@ -1,8 +1,10 @@
 import { Flash, str } from "@/components/flash";
 import { MonthNav } from "@/components/month-nav";
+import { Card, Empty, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import { currentMonth, formatDateBR, isValidMonth, monthRange, todayISO } from "@/lib/dates";
+import { currentMonth, isValidMonth, monthRange, todayISO } from "@/lib/dates";
 import { formatBRL } from "@/lib/money";
+import { summarize } from "@/lib/summary";
 import {
   KIND_LABEL,
   type Account,
@@ -11,48 +13,55 @@ import {
   type Transaction,
 } from "@/lib/types";
 import { createTransaction, deleteTransaction } from "./actions";
+import { TransactionForm } from "./transaction-form";
 
-export default async function LancamentosPage({
-  searchParams,
-}: PageProps<"/lancamentos">) {
+const dayFmt = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+function dayLabel(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return dayFmt.format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+export default async function LancamentosPage({ searchParams }: PageProps<"/lancamentos">) {
   const sp = await searchParams;
   const mesParam = str(sp.mes);
   const month = isValidMonth(mesParam) ? mesParam : currentMonth();
   const { start, end } = monthRange(month);
   const { supabase } = await requireUser();
 
-  const [{ data: txs }, { data: accounts }, { data: cards }, { data: cats }] =
-    await Promise.all([
-      supabase
-        .from("transactions")
-        .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
-        .gte("occurred_on", start)
-        .lt("occurred_on", end)
-        .order("occurred_on", { ascending: false })
-        .order("created_at", { ascending: false })
-        .overrideTypes<Transaction[]>(),
-      supabase
-        .from("accounts")
-        .select("id,name,institution,type,opening_balance_cents,archived")
-        .eq("archived", false)
-        .order("created_at")
-        .overrideTypes<Account[]>(),
-      supabase
-        .from("credit_cards")
-        .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,archived")
-        .eq("archived", false)
-        .order("created_at")
-        .overrideTypes<CreditCard[]>(),
-      supabase
-        .from("categories")
-        .select("id,name,kind")
-        .order("name")
-        .overrideTypes<Category[]>(),
-    ]);
+  const [{ data: txs }, { data: accounts }, { data: cards }, { data: cats }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
+      .gte("occurred_on", start)
+      .lt("occurred_on", end)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .overrideTypes<Transaction[]>(),
+    supabase
+      .from("accounts")
+      .select("id,name,institution,type,opening_balance_cents,archived")
+      .eq("archived", false)
+      .order("created_at")
+      .overrideTypes<Account[]>(),
+    supabase
+      .from("credit_cards")
+      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived")
+      .eq("archived", false)
+      .order("created_at")
+      .overrideTypes<CreditCard[]>(),
+    supabase.from("categories").select("id,name").order("name").overrideTypes<Category[]>(),
+  ]);
 
   const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
   const cardName = new Map((cards ?? []).map((c) => [c.id, c.name]));
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
+  const s = summarize(txs ?? []);
 
   function where(t: Transaction): string {
     switch (t.kind) {
@@ -62,132 +71,84 @@ export default async function LancamentosPage({
         return `${accountName.get(t.account_id ?? "") ?? "?"} → fatura ${cardName.get(t.card_id ?? "") ?? "?"}`;
       default:
         return t.card_id
-          ? `Cartão ${cardName.get(t.card_id) ?? "?"}`
+          ? (cardName.get(t.card_id) ?? "Cartão")
           : (accountName.get(t.account_id ?? "") ?? "?");
     }
   }
 
+  const byDay = new Map<string, Transaction[]>();
+  for (const t of txs ?? []) {
+    byDay.set(t.occurred_on, [...(byDay.get(t.occurred_on) ?? []), t]);
+  }
+
   const noAccounts = (accounts ?? []).length === 0;
-  const input = "rounded border border-zinc-300 bg-white p-2 text-black";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Lançamentos</h1>
-        <MonthNav base="/lancamentos" month={month} />
-      </div>
+      <PageHeader title="Lançamentos" action={<MonthNav base="/lancamentos" month={month} />} />
       <Flash erro={str(sp.erro)} ok={str(sp.ok)} />
 
       {noAccounts ? (
-        <p className="rounded border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-          Cadastre uma conta em <a className="underline" href="/contas">Contas</a> para começar a lançar.
-        </p>
+        <Empty>
+          Para lançar, primeiro cadastre uma conta em <a className="underline" href="/contas">Contas</a>.
+        </Empty>
       ) : (
-        <form action={createTransaction} className="grid gap-3 rounded border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800">
-          <label className="flex flex-col gap-1 text-sm">
-            Tipo
-            <select name="kind" defaultValue="expense" className={input}>
-              {Object.entries(KIND_LABEL).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Valor (R$)
-            <input name="amount" inputMode="decimal" required placeholder="0,00" autoFocus className={input} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Origem (conta ou cartão)
-            <select name="source" required className={input}>
-              <optgroup label="Contas">
-                {(accounts ?? []).map((a) => (
-                  <option key={a.id} value={`a:${a.id}`}>{a.name}</option>
-                ))}
-              </optgroup>
-              {(cards ?? []).length > 0 && (
-                <optgroup label="Cartões (só para Saída)">
-                  {(cards ?? []).map((c) => (
-                    <option key={c.id} value={`c:${c.id}`}>{c.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Destino (só transferência ou pagamento de fatura)
-            <select name="target" defaultValue="" className={input}>
-              <option value="">—</option>
-              <optgroup label="Contas">
-                {(accounts ?? []).map((a) => (
-                  <option key={a.id} value={`a:${a.id}`}>{a.name}</option>
-                ))}
-              </optgroup>
-              {(cards ?? []).length > 0 && (
-                <optgroup label="Cartões">
-                  {(cards ?? []).map((c) => (
-                    <option key={c.id} value={`c:${c.id}`}>{c.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Categoria (entrada/saída)
-            <select name="category_id" defaultValue="" className={input}>
-              <option value="">Sem categoria</option>
-              <optgroup label="Saídas">
-                {(cats ?? []).filter((c) => c.kind === "expense").map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Entradas">
-                {(cats ?? []).filter((c) => c.kind === "income").map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Data
-            <input name="occurred_on" type="date" required defaultValue={todayISO()} className={input} />
-          </label>
-          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            Descrição
-            <input name="description" maxLength={200} className={input} />
-          </label>
-          <button className="rounded bg-emerald-700 p-2 font-medium text-white sm:col-span-2">
-            Salvar lançamento
-          </button>
-        </form>
+        <TransactionForm
+          action={createTransaction}
+          accounts={(accounts ?? []).map((a) => ({ id: a.id, label: a.name }))}
+          cards={(cards ?? []).map((c) => ({
+            id: c.id,
+            accountId: c.account_id,
+            label: c.last4 ? `${c.name} •••• ${c.last4}` : c.name,
+          }))}
+          categories={(cats ?? []).map((c) => ({ id: c.id, label: c.name }))}
+          today={todayISO()}
+        />
       )}
 
-      <ul className="flex flex-col divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-        {(txs ?? []).length === 0 && (
-          <li className="p-3 text-sm text-zinc-500">Nenhum lançamento neste mês.</li>
-        )}
-        {(txs ?? []).map((t) => (
-          <li key={t.id} className="flex items-center gap-3 p-3">
-            <span className="w-20 shrink-0 text-xs text-zinc-500">{formatDateBR(t.occurred_on).slice(0, 5)}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{t.description || KIND_LABEL[t.kind]}</p>
-              <p className="truncate text-xs text-zinc-500">
-                {[KIND_LABEL[t.kind], t.category_id ? catName.get(t.category_id) : null, where(t)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-            <span className={`tabular-nums ${t.kind === "income" ? "text-emerald-700" : ""}`}>
-              {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}
-              {formatBRL(t.amount_cents)}
-            </span>
-            <form action={deleteTransaction}>
-              <input type="hidden" name="id" value={t.id} />
-              <input type="hidden" name="mes" value={month} />
-              <button aria-label="Excluir lançamento" className="px-2 text-zinc-500 hover:text-red-700">×</button>
-            </form>
-          </li>
-        ))}
-      </ul>
+      <div className="grid grid-cols-3 gap-2 text-center text-sm">
+        <Card className="!p-3">
+          <p className="text-xs text-zinc-500">Entradas</p>
+          <p className="font-semibold text-emerald-700 tabular-nums">{formatBRL(s.incomeCents)}</p>
+        </Card>
+        <Card className="!p-3">
+          <p className="text-xs text-zinc-500">Saídas</p>
+          <p className="font-semibold tabular-nums">{formatBRL(s.expenseCents)}</p>
+        </Card>
+        <Card className="!p-3">
+          <p className="text-xs text-zinc-500">Resultado</p>
+          <p className={`font-semibold tabular-nums ${s.netCents < 0 ? "text-red-700" : ""}`}>{formatBRL(s.netCents)}</p>
+        </Card>
+      </div>
+
+      {byDay.size === 0 && <Empty>Nenhum lançamento neste mês.</Empty>}
+
+      {[...byDay.entries()].map(([day, items]) => (
+        <section key={day} className="flex flex-col gap-1">
+          <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{dayLabel(day)}</h2>
+          <ul className="flex flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
+            {items.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{t.description || KIND_LABEL[t.kind]}</p>
+                  <p className="truncate text-xs text-zinc-500">
+                    {[t.category_id ? catName.get(t.category_id) : null, where(t)].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <span className={`font-medium tabular-nums ${t.kind === "income" ? "text-emerald-700" : ""}`}>
+                  {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}
+                  {formatBRL(t.amount_cents)}
+                </span>
+                <form action={deleteTransaction}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <input type="hidden" name="mes" value={month} />
+                  <button aria-label="Excluir lançamento" className="rounded px-2 py-1 text-zinc-400 hover:text-red-700">×</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

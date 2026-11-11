@@ -22,13 +22,13 @@ export type CreditCard = {
   credit_limit_cents: number | null;
   closing_day: number;
   due_day: number;
+  last4: string | null;
   archived: boolean;
 };
 
 export type Category = {
   id: string;
   name: string;
-  kind: "income" | "expense";
 };
 
 export type Transaction = {

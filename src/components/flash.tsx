@@ -2,12 +2,12 @@ export function Flash({ erro, ok }: { erro?: string; ok?: string }) {
   return (
     <>
       {erro && (
-        <p role="alert" className="rounded bg-red-100 p-3 text-sm text-red-800">
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {erro}
         </p>
       )}
       {ok && (
-        <p role="status" className="rounded bg-green-100 p-3 text-sm text-green-800">
+        <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
           {ok}
         </p>
       )}
