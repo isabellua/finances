@@ -113,16 +113,16 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
 
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <Card className="!p-3">
-          <p className="text-xs text-zinc-500">Entradas</p>
-          <p className="font-semibold text-emerald-700 tabular-nums">{formatBRL(s.incomeCents)}</p>
+          <p className="text-xs text-ink-subtle">Entradas</p>
+          <p className="font-semibold text-pos tabular-nums">{formatBRL(s.incomeCents)}</p>
         </Card>
         <Card className="!p-3">
-          <p className="text-xs text-zinc-500">Saídas</p>
+          <p className="text-xs text-ink-subtle">Saídas</p>
           <p className="font-semibold tabular-nums">{formatBRL(s.expenseCents)}</p>
         </Card>
         <Card className="!p-3">
-          <p className="text-xs text-zinc-500">Resultado</p>
-          <p className={`font-semibold tabular-nums ${s.netCents < 0 ? "text-red-700" : ""}`}>{formatBRL(s.netCents)}</p>
+          <p className="text-xs text-ink-subtle">Resultado</p>
+          <p className={`font-semibold tabular-nums ${s.netCents < 0 ? "text-neg" : ""}`}>{formatBRL(s.netCents)}</p>
         </Card>
       </div>
 
@@ -130,34 +130,34 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
 
       {[...byDay.entries()].map(([day, items]) => (
         <section key={day} className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{dayLabel(day)}</h2>
-          <ul className="flex flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
+          <h2 className="text-xs font-semibold tracking-wide text-ink-subtle uppercase">{dayLabel(day)}</h2>
+          <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-raised">
             {items.map((t) => (
               <li key={t.id} className="flex items-center gap-3 p-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{t.description || KIND_LABEL[t.kind]}</p>
-                  <p className="truncate text-xs text-zinc-500">
+                  <p className="truncate text-xs text-ink-subtle">
                     {[t.category_id ? catName.get(t.category_id) : null, where(t)].filter(Boolean).join(" · ")}
                   </p>
                   {t.fx_currency && t.fx_amount_minor && t.fx_rate_micro && (
-                    <p className="truncate text-xs text-zinc-500">
+                    <p className="truncate text-xs text-ink-subtle">
                       {formatForeign(t.fx_currency, t.fx_amount_minor)} a {formatRateMicro(t.fx_rate_micro)}
                       {t.fx_estimated && (
-                        <a href="/cambio" className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                        <a href="/cambio" className="ml-2 rounded-full bg-warn-tint px-2 py-0.5 font-medium text-warn">
                           estimativa
                         </a>
                       )}
                     </p>
                   )}
                 </div>
-                <span className={`font-medium tabular-nums ${t.kind === "income" ? "text-emerald-700" : ""}`}>
+                <span className={`font-medium tabular-nums ${t.kind === "income" ? "text-pos" : ""}`}>
                   {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}
                   {formatBRL(t.amount_cents)}
                 </span>
                 <Link
                   href={`/lancamentos/${t.id}/editar`}
                   aria-label={`Editar ${t.description || KIND_LABEL[t.kind]}`}
-                  className="rounded px-2 py-1 text-sm text-zinc-500 hover:text-emerald-700"
+                  className="rounded-md px-2 py-1 text-sm text-ink-subtle hover:text-accent-text"
                 >
                   Editar
                 </Link>
@@ -167,7 +167,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
                   <ConfirmButton
                     message="Excluir este lançamento?"
                     aria-label="Excluir lançamento"
-                    className="rounded px-2 py-1 text-zinc-400 hover:text-red-700"
+                    className="rounded-md px-2 py-1 text-ink-subtle hover:text-neg"
                   >
                     ×
                   </ConfirmButton>

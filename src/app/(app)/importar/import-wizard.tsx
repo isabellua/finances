@@ -249,7 +249,7 @@ export function ImportWizard({
   return (
     <div className="flex flex-col gap-4">
       {error && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="rounded-lg bg-neg-tint p-3 text-sm text-neg">
           {error}
         </p>
       )}
@@ -277,13 +277,13 @@ export function ImportWizard({
               const f = e.target.files?.[0];
               if (f) void onFile(f);
             }}
-            className={`${inputCls} file:mr-3 file:rounded-md file:border-0 file:bg-emerald-700 file:px-3 file:py-1.5 file:text-white`}
+            className={`${inputCls} file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-on-accent`}
           />
         </Field>
       </Card>
 
       {warnings.map((w) => (
-        <p key={w} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <p key={w} className="rounded-lg bg-warn-tint p-3 text-sm text-warn">
           {w}
         </p>
       ))}
@@ -308,14 +308,14 @@ export function ImportWizard({
           </label>
 
           {csvPreview && (
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 text-sm dark:border-zinc-800">
+            <div className="overflow-x-auto rounded-lg border border-line text-sm">
               <table className="w-full">
-                <thead className="bg-zinc-50 text-left text-xs text-zinc-500 dark:bg-zinc-900">
+                <thead className="bg-sunken text-left text-xs text-ink-subtle">
                   <tr><th className="p-2">Data</th><th className="p-2">Descrição</th><th className="p-2 text-right">Valor</th></tr>
                 </thead>
                 <tbody>
                   {csvPreview.rows.slice(0, 5).map((r, i) => (
-                    <tr key={i} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <tr key={i} className="border-t border-line">
                       <td className="p-2">{r.date}</td>
                       <td className="p-2">{r.description}</td>
                       <td className="p-2 text-right tabular-nums">{formatBRL(r.amountCents)}</td>
@@ -325,8 +325,8 @@ export function ImportWizard({
               </table>
             </div>
           )}
-          {csvPreview?.warnings.map((w) => <p key={w} className="text-xs text-zinc-500">{w}</p>)}
-          <p className="text-xs text-zinc-500">Saídas devem aparecer negativas. Se estiver ao contrário, use a opção de inverter.</p>
+          {csvPreview?.warnings.map((w) => <p key={w} className="text-xs text-ink-subtle">{w}</p>)}
+          <p className="text-xs text-ink-subtle">Saídas devem aparecer negativas. Se estiver ao contrário, use a opção de inverter.</p>
           <button
             disabled={!csvPreview || csvPreview.rows.length === 0}
             onClick={() => csvPreview && void buildPreview(csvPreview.rows)}
@@ -342,7 +342,7 @@ export function ImportWizard({
           <div className="flex flex-wrap items-center gap-3 p-4">
             <div className="flex-1">
               <p className="font-medium">Revise antes de importar</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ink-subtle">
                 Linhas desmarcadas não serão importadas. Ao escolher uma categoria, o app lembra do estabelecimento nas próximas importações.
               </p>
             </div>
@@ -355,7 +355,7 @@ export function ImportWizard({
             </button>
           </div>
 
-          <ul className="divide-y divide-zinc-200 border-t border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="divide-y divide-line border-t border-line">
             {rows.map((r, i) => (
               <li key={i} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 ${r.blocked ? "opacity-50" : ""}`}>
                 <input
@@ -367,12 +367,12 @@ export function ImportWizard({
                     setRows((prev) => prev && prev.map((x, j) => (j === i ? { ...x, selected: e.target.checked } : x)))
                   }
                 />
-                <span className="w-20 shrink-0 text-xs text-zinc-500">{r.date.split("-").reverse().join("/")}</span>
+                <span className="w-20 shrink-0 text-xs text-ink-subtle">{r.date.split("-").reverse().join("/")}</span>
                 <div className="min-w-40 flex-1">
                   <p className="truncate text-sm font-medium">{r.description || "(sem descrição)"}</p>
-                  {r.note && <p className="text-xs text-amber-700 dark:text-amber-400">{r.note}</p>}
+                  {r.note && <p className="text-xs text-warn">{r.note}</p>}
                   {r.merge && (
-                    <label className="mt-1 flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+                    <label className="mt-1 flex items-start gap-2 text-xs text-accent-text">
                       <input
                         type="checkbox"
                         checked={r.mergeOn}
@@ -392,14 +392,14 @@ export function ImportWizard({
                   value={r.categoryId}
                   disabled={r.blocked}
                   onChange={(e) => setCategory(i, e.target.value)}
-                  className="w-44 rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="w-44 rounded-lg border border-line-strong bg-raised px-2 py-1.5 text-sm"
                 >
                   <option value="">Sem categoria</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <span className={`w-28 text-right text-sm font-medium tabular-nums ${r.amountCents > 0 ? "text-emerald-700" : ""}`}>
+                <span className={`w-28 text-right text-sm font-medium tabular-nums ${r.amountCents > 0 ? "text-pos" : ""}`}>
                   {formatBRL(r.amountCents)}
                 </span>
               </li>

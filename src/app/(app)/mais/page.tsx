@@ -14,9 +14,9 @@ export default function MaisPage() {
         {items.map((i) => (
           <li key={i.href}>
             <Link href={i.href}>
-              <Card className="flex flex-col gap-1 hover:bg-zinc-50 dark:hover:bg-zinc-900">
+              <Card className="flex flex-col gap-1 hover:bg-sunken">
                 <p className="font-semibold">{i.title}</p>
-                <p className="text-sm text-zinc-500">{i.text}</p>
+                <p className="text-sm text-ink-subtle">{i.text}</p>
               </Card>
             </Link>
           </li>

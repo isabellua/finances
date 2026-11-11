@@ -22,17 +22,17 @@ function badge(r: PayableRow, isCard: boolean): { text: string; cls: string } {
     case "overdue":
       return {
         text: isCard ? `Cobrança não vista há ${n} ${plural}` : `Atrasada há ${n} ${plural}`,
-        cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
+        cls: "bg-neg-tint text-neg",
       };
     case "due_soon":
       return {
         text: r.daysUntil === 0 ? (isCard ? "Cobra hoje" : "Vence hoje") : `${isCard ? "Cobra" : "Vence"} em ${n} ${plural}`,
-        cls: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+        cls: "bg-warn-tint text-warn",
       };
     case "matched":
-      return { text: "Parece já pago (extrato)", cls: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200" };
+      return { text: "Parece já pago (extrato)", cls: "bg-pos-tint text-pos" };
     default:
-      return { text: `Em ${n} dias`, cls: "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300" };
+      return { text: `Em ${n} dias`, cls: "bg-sunken text-ink-muted" };
   }
 }
 
@@ -91,10 +91,10 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
     return (
       <li className="flex flex-col gap-2 p-3">
         <div className="flex items-center gap-3">
-          <span className="w-12 shrink-0 text-xs text-zinc-500">{formatDateBR(r.date).slice(0, 5)}</span>
+          <span className="w-12 shrink-0 text-xs text-ink-subtle">{formatDateBR(r.date).slice(0, 5)}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{c.description}</p>
-            <p className="truncate text-xs text-zinc-500">
+            <p className="truncate text-xs text-ink-subtle">
               {KIND_LABELS[c.kind]}{part} · {payLabel(c)}
             </p>
           </div>
@@ -103,7 +103,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
         <div className="flex flex-wrap items-center gap-2 pl-[3.75rem]">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.cls}`}>{b.text}</span>
           <details className="flex-1">
-            <summary className="w-fit cursor-pointer list-none text-xs font-medium text-emerald-700 underline">
+            <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
               {r.status === "matched" ? "Confirmar" : isCard ? "Registrar cobrança" : "Registrar pagamento"}
             </summary>
             <form action={settleOccurrence} className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -120,7 +120,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                 <button name="mode" value="mark" className={btnGhost}>Já está no extrato</button>
                 <button name="mode" value="skip" className={btnGhost}>Pular</button>
               </div>
-              <p className="text-xs text-zinc-500 sm:col-span-2">
+              <p className="text-xs text-ink-subtle sm:col-span-2">
                 “Criar lançamento” registra a saída. Use “Já está no extrato” se você já importou ou lançou esse pagamento. “Pular” tira da lista sem lançar.
               </p>
             </form>
@@ -145,9 +145,9 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
 
       {overdue.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="font-semibold text-red-700">Atrasadas ({overdue.length})</h2>
+          <h2 className="font-semibold text-neg">Atrasadas ({overdue.length})</h2>
           <Card className="!p-0">
-            <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <ul className="divide-y divide-line">
               {overdue.map((r) => <Occurrence key={`${r.commitment.id}|${r.seq}`} r={r} />)}
             </ul>
           </Card>
@@ -160,7 +160,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
           <Empty>Nada vencendo nos próximos 30 dias.</Empty>
         ) : (
           <Card className="!p-0">
-            <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <ul className="divide-y divide-line">
               {upcoming.map((r) => <Occurrence key={`${r.commitment.id}|${r.seq}`} r={r} />)}
             </ul>
           </Card>
@@ -202,9 +202,9 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">
                         {c.description}
-                        {!c.active && <span className="ml-2 text-xs font-normal text-zinc-500">(pausado)</span>}
+                        {!c.active && <span className="ml-2 text-xs font-normal text-ink-subtle">(pausado)</span>}
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-ink-subtle">
                         {KIND_LABELS[c.kind]}
                         {c.kind === "subscription" ? (c.frequency === "yearly" ? " · anual" : " · mensal") : ""}
                         {c.kind === "installment" ? ` · ${c.total_occurrences}× · faltam ${remaining}` : ""}
@@ -217,7 +217,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                   </div>
 
                   <details>
-                    <summary className="w-fit cursor-pointer list-none text-xs font-medium text-emerald-700 underline">
+                    <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
                       Editar
                     </summary>
                     <form action={updateCommitment} className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -254,7 +254,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                         <input type="checkbox" name="active" defaultChecked={c.active} />
                         Ativo (desmarque para pausar)
                       </label>
-                      <p className="text-xs text-zinc-500 sm:col-span-2">
+                      <p className="text-xs text-ink-subtle sm:col-span-2">
                         Datas, tipo e número de parcelas não mudam aqui. Para isso, exclua e cadastre de novo.
                       </p>
                       <button className={`${btnPrimary} sm:col-span-2`}>Salvar alterações</button>
@@ -265,7 +265,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                     <input type="hidden" name="id" value={c.id} />
                     <ConfirmButton
                       message={`Excluir “${c.description}”? Os lançamentos que ele já gerou continuam existindo.`}
-                      className="text-xs text-zinc-500 underline"
+                      className="text-xs text-ink-subtle underline"
                     >
                       Excluir
                     </ConfirmButton>
@@ -281,12 +281,12 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
         <section className="flex flex-col gap-2">
           <h2 className="font-semibold">Quanto falta pagar nos próximos meses</h2>
           <Card className="!p-0">
-            <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+            <ul className="divide-y divide-line text-sm">
               {projection.map((m) => (
                 <li key={m.month} className="flex items-start justify-between gap-3 p-3">
                   <div>
                     <p className="font-medium capitalize">{monthLabel(m.month)}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-ink-subtle">
                       {[
                         m.byKind.subscription > 0 ? `assinaturas ${formatBRL(m.byKind.subscription)}` : null,
                         m.byKind.fixed_bill > 0 ? `contas fixas ${formatBRL(m.byKind.fixed_bill)}` : null,
@@ -300,7 +300,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
               ))}
             </ul>
           </Card>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ink-subtle">
             Só compromissos cadastrados, o que ainda não foi pago. Não inclui gastos variáveis (mercado, lazer…); a previsão completa vem depois.
           </p>
         </section>
@@ -310,19 +310,19 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
         <section className="flex flex-col gap-2">
           <h2 className="font-semibold">Registrados recentemente</h2>
           <Card className="!p-0">
-            <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+            <ul className="divide-y divide-line text-sm">
               {recent.map((s) => {
                 const c = byId.get(s.commitment_id);
                 if (!c) return null;
                 return (
                   <li key={`${s.commitment_id}|${s.seq}`} className="flex items-center gap-3 p-3">
-                    <span className="w-12 shrink-0 text-xs text-zinc-500">{formatDateBR(s.settled_on).slice(0, 5)}</span>
+                    <span className="w-12 shrink-0 text-xs text-ink-subtle">{formatDateBR(s.settled_on).slice(0, 5)}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">
                         {c.description}
                         {c.total_occurrences && c.total_occurrences > 1 ? ` · ${s.seq}/${c.total_occurrences}` : ""}
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-ink-subtle">
                         {s.status === "skipped" ? "Pulado" : s.transaction_id ? "Pago, lançamento criado" : "Marcado como pago"}
                       </p>
                     </div>
@@ -331,7 +331,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
                       <input type="hidden" name="seq" value={s.seq} />
                       <ConfirmButton
                         message={s.transaction_id ? "Desfazer? O lançamento criado por esse pagamento também será removido." : "Desfazer este registro?"}
-                        className="text-xs text-zinc-500 underline"
+                        className="text-xs text-ink-subtle underline"
                       >
                         Desfazer
                       </ConfirmButton>

@@ -123,7 +123,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{t.description}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-ink-subtle">
                       {formatDateBR(t.occurred_on)} · {cardName.get(t.card_id ?? "") ?? "Cartão"} ·{" "}
                       {formatForeign(t.fx_currency!, t.fx_amount_minor!)} a {formatRateMicro(t.fx_rate_micro!)} · spread{" "}
                       {formatBps(t.fx_spread_bps ?? 0)}% · IOF {formatBps(t.fx_iof_bps ?? 0)}%
@@ -138,7 +138,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
                   </Field>
                   <button className={btnPrimary}>Confirmar valor real</button>
                 </form>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-ink-subtle">
                   Importar a fatura em “Importar” também atualiza esta estimativa, se o valor for parecido.
                 </p>
               </Card>
@@ -153,15 +153,15 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
           {calib.map(({ card, rows, avg, n }) => (
             <Card key={card.id} className="flex flex-col gap-3">
               <p className="font-medium">{label(card)}</p>
-              <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+              <ul className="divide-y divide-line text-sm">
                 {rows.map(({ t, diffPct }) => (
                   <li key={t.id} className="flex items-center justify-between gap-3 py-2">
                     <span className="min-w-0 flex-1 truncate">
-                      {t.description} <span className="text-xs text-zinc-500">({formatDateBR(t.occurred_on)})</span>
+                      {t.description} <span className="text-xs text-ink-subtle">({formatDateBR(t.occurred_on)})</span>
                     </span>
-                    <span className="tabular-nums text-zinc-500">{formatBRL(t.fx_estimated_cents!)} →</span>
+                    <span className="tabular-nums text-ink-subtle">{formatBRL(t.fx_estimated_cents!)} →</span>
                     <span className="font-medium tabular-nums">{formatBRL(t.amount_cents)}</span>
-                    <span className={`w-16 text-right text-xs tabular-nums ${Math.abs(diffPct) < 0.5 ? "text-emerald-700" : "text-amber-700"}`}>
+                    <span className={`w-16 text-right text-xs tabular-nums ${Math.abs(diffPct) < 0.5 ? "text-pos" : "text-warn"}`}>
                       {diffPct >= 0 ? "+" : ""}{diffPct.toFixed(2).replace(".", ",")}%
                     </span>
                   </li>
@@ -183,7 +183,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
                   )}
                 </div>
               )}
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ink-subtle">
                 O spread calculado inclui a diferença entre a cotação que usamos e a que o banco aplicou. Com várias compras ele se aproxima do spread real; com uma só, é pouco confiável (por isso o botão só aparece a partir de 2).
               </p>
             </Card>
@@ -197,7 +197,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
         <Card className="flex flex-col gap-3">
           <div>
             <p className="font-medium">IOF em compra internacional no cartão</p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-ink-subtle">
               Alíquota geral, com data de início. Fontes secundárias indicam 3,5% desde julho de 2025, mas não consegui conferir
               na Receita Federal: confirme no site oficial antes de confiar. Alguns bancos absorvem o IOF; para isso use o IOF
               próprio do cartão, abaixo.
@@ -206,19 +206,19 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
           {(params ?? []).length === 0 ? (
             <Empty>Nenhuma alíquota cadastrada. A calculadora usa 3,5% como sugestão.</Empty>
           ) : (
-            <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+            <ul className="divide-y divide-line text-sm">
               {(params ?? []).map((p) => (
                 <li key={p.id} className="flex items-center gap-3 py-2">
                   <span className="flex-1">
                     <strong>{formatBps(p.rate_bps)}%</strong> desde {formatDateBR(p.valid_from)}
                     {p.valid_from <= today && p.id === (params ?? []).find((x) => x.valid_from <= today)?.id && (
-                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">vigente</span>
+                      <span className="ml-2 rounded-full bg-pos-tint px-2 py-0.5 text-xs text-pos">vigente</span>
                     )}
-                    {p.note && <span className="block text-xs text-zinc-500">{p.note}</span>}
+                    {p.note && <span className="block text-xs text-ink-subtle">{p.note}</span>}
                   </span>
                   <form action={deleteIofParam}>
                     <input type="hidden" name="id" value={p.id} />
-                    <ConfirmButton message="Remover esta alíquota?" className="text-xs text-zinc-500 underline">Remover</ConfirmButton>
+                    <ConfirmButton message="Remover esta alíquota?" className="text-xs text-ink-subtle underline">Remover</ConfirmButton>
                   </form>
                 </li>
               ))}

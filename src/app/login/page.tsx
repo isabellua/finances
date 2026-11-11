@@ -10,10 +10,10 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight text-emerald-700">Finanças</h1>
+      <h1 className="text-[28px] leading-8 font-[650] tracking-[-0.6px]">Finanças</h1>
 
-      {erro && <p role="alert" className="rounded bg-red-100 p-3 text-sm text-red-800">{erro}</p>}
-      {ok && <p role="status" className="rounded bg-green-100 p-3 text-sm text-green-800">{ok}</p>}
+      {erro && <p role="alert" className="rounded-md bg-neg-tint p-3 text-sm text-neg">{erro}</p>}
+      {ok && <p role="status" className="rounded-md bg-pos-tint p-3 text-sm text-pos">{ok}</p>}
 
       <form className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">

@@ -35,14 +35,14 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/categ
         <Card>
           <ul className="flex flex-wrap gap-2">
             {cats.map((c) => (
-              <li key={c.id} className="flex items-center gap-1 rounded-full border border-zinc-300 py-1 pr-1 pl-3 text-sm dark:border-zinc-700">
+              <li key={c.id} className="flex items-center gap-1 rounded-full border border-line-strong py-1 pr-1 pl-3 text-sm">
                 {c.name}
                 <form action={deleteCategory}>
                   <input type="hidden" name="id" value={c.id} />
                   <ConfirmButton
                     message={`Excluir a categoria ${c.name}? Os lançamentos ficam sem categoria.`}
                     aria-label={`Excluir ${c.name}`}
-                    className="rounded-full px-2 text-zinc-500 hover:text-red-700"
+                    className="rounded-full px-2 text-ink-subtle hover:text-neg"
                   >
                     ×
                   </ConfirmButton>

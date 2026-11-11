@@ -1,24 +1,109 @@
 @import "tailwindcss";
 
+/*
+ * Tokens do design system Finanças. Claro por padrão, escuro via
+ * prefers-color-scheme. Componentes usam só as utilidades derivadas
+ * (bg-raised, text-ink, border-line...), nunca cor fixa.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --ground: #f1f2f4;
+  --raised: #fbfbfc;
+  --sunken: #e4e7ec;
+  --hero: #14171c;
+  --line: #d3d8df;
+  --line-strong: #77818f;
+  --ink: #14171c;
+  --ink-muted: #4a5361;
+  --ink-subtle: #5b6472;
+  --hero-ink: #eef0f3;
+  --hero-muted: #a6afbc;
+  --accent: #c4ee3a;
+  --on-accent: #14171c;
+  --accent-text: #3a5a05;
+  --accent-tint: #e2f2ad;
+  --focus: #3a5a05;
+  --pos: #0a6670;
+  --pos-tint: #dff1f2;
+  --neg: #b1371a;
+  --neg-tint: #fbe6e0;
+  --warn: #7d5200;
+  --warn-tint: #f8ecd0;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ground: #0e1116;
+    --raised: #171b22;
+    --sunken: #0a0c10;
+    --hero: #222a36;
+    --line: #2b323d;
+    --line-strong: #707a8a;
+    --ink: #eceef2;
+    --ink-muted: #a6afbc;
+    --ink-subtle: #9099a7;
+    --accent-text: #c4ee3a;
+    --accent-tint: #2a3a0c;
+    --focus: #c4ee3a;
+    --pos: #5fd3dc;
+    --pos-tint: #12353a;
+    --neg: #ff8f6b;
+    --neg-tint: #3d2018;
+    --warn: #f0b84a;
+    --warn-tint: #3a2d10;
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-ground: var(--ground);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-hero: var(--hero);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-hero-ink: var(--hero-ink);
+  --color-hero-muted: var(--hero-muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-tint: var(--accent-tint);
+  --color-focus: var(--focus);
+  --color-pos: var(--pos);
+  --color-pos-tint: var(--pos-tint);
+  --color-neg: var(--neg);
+  --color-neg-tint: var(--neg-tint);
+  --color-warn: var(--warn);
+  --color-warn-tint: var(--warn-tint);
+
+  --font-sans: var(--font-geist), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Três raios: campo e botão 10px, cartão 16px, chip pill. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

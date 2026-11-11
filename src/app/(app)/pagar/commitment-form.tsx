@@ -57,7 +57,7 @@ export function CommitmentForm({
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="kind" value={kind} />
 
-      <div role="tablist" aria-label="Tipo" className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
+      <div role="tablist" aria-label="Tipo" className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1 sm:grid-cols-4">
         {KINDS.map((k) => (
           <button
             key={k.value}
@@ -67,15 +67,15 @@ export function CommitmentForm({
             onClick={() => setKind(k.value)}
             className={`rounded-md px-2 py-2 text-sm font-medium ${
               kind === k.value
-                ? "bg-white text-emerald-800 shadow-sm dark:bg-zinc-800 dark:text-emerald-300"
-                : "text-zinc-600 dark:text-zinc-400"
+                ? "bg-raised text-accent-text shadow-sm"
+                : "text-ink-muted"
             }`}
           >
             {k.label}
           </button>
         ))}
       </div>
-      <p className="-mt-2 text-xs text-zinc-500">{hint}</p>
+      <p className="-mt-2 text-xs text-ink-subtle">{hint}</p>
 
       <div key={kind} className="grid gap-3 sm:grid-cols-2">
         <Field label="Descrição" className="sm:col-span-2">

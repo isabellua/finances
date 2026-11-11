@@ -105,7 +105,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <p className="text-lg font-semibold">{a.name}</p>
-                <p className="text-xs text-zinc-500">{ACCOUNT_TYPE_LABEL[a.type]}</p>
+                <p className="text-xs text-ink-subtle">{ACCOUNT_TYPE_LABEL[a.type]}</p>
               </div>
               <p className="text-xl font-semibold tabular-nums">
                 {formatBRL(balanceById.get(a.id) ?? a.opening_balance_cents)}
@@ -113,16 +113,16 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
             </div>
 
             {accCards.length > 0 && (
-              <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+              <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
                 {accCards.map((c) => (
                   <li key={c.id} className="flex flex-col gap-3 p-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
                         <p className="font-medium">
                           {c.name}
-                          {c.last4 ? <span className="text-zinc-500"> •••• {c.last4}</span> : null}
+                          {c.last4 ? <span className="text-ink-subtle"> •••• {c.last4}</span> : null}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-ink-subtle">
                           Fecha dia {c.closing_day} · vence dia {c.due_day}
                           {c.credit_limit_cents != null ? ` · limite ${formatBRL(c.credit_limit_cents)}` : ""}
                         </p>
@@ -131,14 +131,14 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                         <input type="hidden" name="id" value={c.id} />
                         <ConfirmButton
                           message={`Arquivar o cartão ${c.name}? Ele sai das telas de uso, mas os lançamentos continuam existindo. Fica em “Arquivadas”, no fim da página.`}
-                          className="text-xs text-zinc-500 underline"
+                          className="text-xs text-ink-subtle underline"
                         >
                           Arquivar
                         </ConfirmButton>
                       </form>
                     </div>
                     <details>
-                      <summary className="w-fit cursor-pointer list-none text-xs font-medium text-emerald-700 underline">
+                      <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
                         Editar cartão
                       </summary>
                       <form action={updateCard} className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -207,7 +207,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
             </details>
 
             <details>
-              <summary className="w-fit cursor-pointer list-none text-xs font-medium text-emerald-700 underline">
+              <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
                 Editar conta
               </summary>
               <form action={updateAccount} className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -237,7 +237,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
               <input type="hidden" name="id" value={a.id} />
               <ConfirmButton
                 message={`Arquivar a conta ${a.name}? Ela sai das telas de uso e do saldo total, mas os lançamentos continuam existindo. Fica em “Arquivadas”, no fim da página.`}
-                className="text-xs text-zinc-500 underline"
+                className="text-xs text-ink-subtle underline"
               >
                 Arquivar conta
               </ConfirmButton>
@@ -279,7 +279,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
             Arquivadas ({archivedTotal})
           </summary>
           <div className="mt-3 flex flex-col gap-3">
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-ink-subtle">
               Itens arquivados não aparecem nos formulários nem no saldo. Restaure para voltar a usar, ou exclua de vez.
               Excluir apaga também os lançamentos ligados ao item e não tem volta.
             </p>
@@ -290,7 +290,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                 <Card key={a.id} className="flex flex-col gap-3">
                   <div>
                     <p className="font-semibold">{a.name}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-ink-subtle">
                       {ACCOUNT_TYPE_LABEL[a.type]} · {txCount} lançamento(s) ligado(s)
                       {cardsOf.length > 0 ? ` · ${cardsOf.length} cartão(ões): ${cardsOf.map((c) => c.name).join(", ")}` : ""}
                     </p>
@@ -304,7 +304,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                       <input type="hidden" name="id" value={a.id} />
                       <ConfirmButton
                         message={`Excluir DEFINITIVAMENTE a conta ${a.name}?\n\nSerão apagados ${txCount} lançamento(s)${cardsOf.length > 0 ? ` e ${cardsOf.length} cartão(ões)` : ""}, incluindo transferências entre esta conta e as outras (isso altera o saldo das outras). Não tem como desfazer.`}
-                        className={`${btnGhost} text-red-700`}
+                        className={`${btnGhost} text-neg`}
                       >
                         Excluir definitivamente
                       </ConfirmButton>
@@ -319,9 +319,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                 <div>
                   <p className="font-semibold">
                     {c.name}
-                    {c.last4 ? <span className="text-zinc-500"> •••• {c.last4}</span> : null}
+                    {c.last4 ? <span className="text-ink-subtle"> •••• {c.last4}</span> : null}
                   </p>
-                  <p className="text-xs text-zinc-500">Cartão · {txCount} lançamento(s) ligado(s)</p>
+                  <p className="text-xs text-ink-subtle">Cartão · {txCount} lançamento(s) ligado(s)</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <form action={restoreCard}>
@@ -332,7 +332,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                     <input type="hidden" name="id" value={c.id} />
                     <ConfirmButton
                       message={`Excluir DEFINITIVAMENTE o cartão ${c.name}?\n\nSerão apagados ${txCount} lançamento(s) (compras e pagamentos de fatura dele). Não tem como desfazer.`}
-                      className={`${btnGhost} text-red-700`}
+                      className={`${btnGhost} text-neg`}
                     >
                       Excluir definitivamente
                     </ConfirmButton>

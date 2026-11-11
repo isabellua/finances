@@ -1,14 +1,18 @@
+import { CheckCircle, WarningCircle } from "@phosphor-icons/react/ssr";
+
 export function Flash({ erro, ok }: { erro?: string; ok?: string }) {
   return (
     <>
       {erro && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-          {erro}
+        <p role="alert" className="flex items-start gap-3 rounded-xl bg-neg-tint px-4 py-3 text-sm text-neg">
+          <WarningCircle size={20} className="mt-px shrink-0" aria-hidden />
+          <span>{erro}</span>
         </p>
       )}
       {ok && (
-        <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-          {ok}
+        <p role="status" className="flex items-start gap-3 rounded-xl bg-pos-tint px-4 py-3 text-sm text-pos">
+          <CheckCircle size={20} className="mt-px shrink-0" aria-hidden />
+          <span>{ok}</span>
         </p>
       )}
     </>

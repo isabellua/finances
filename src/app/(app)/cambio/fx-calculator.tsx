@@ -204,13 +204,13 @@ export function FxCalculator({
         <button
           type="button"
           onClick={() => setRateManual(false)}
-          className="-mt-1 w-fit text-xs text-emerald-700 underline sm:col-span-2"
+          className="-mt-1 w-fit text-xs text-accent-text underline sm:col-span-2"
         >
           Voltar para a cotação do Banco Central
         </button>
       )}
       {card && (
-        <p className="text-xs text-zinc-500 sm:col-span-2">
+        <p className="text-xs text-ink-subtle sm:col-span-2">
           Regra configurada para este cartão: {RULE_TEXT[rule]}
           {quoteTarget !== date ? ` (${formatDateBR(quoteTarget)})` : ""}.{" "}
           {futureTarget && "Essa data ainda não chegou: a conta usa a cotação mais recente e o valor final vai variar. "}
@@ -229,19 +229,19 @@ export function FxCalculator({
       </Field>
 
       {result && (
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm sm:col-span-2 dark:border-emerald-900 dark:bg-emerald-950">
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-xl border border-line bg-accent-tint p-4 text-sm sm:col-span-2">
           <dt>Valor convertido (cotação)</dt>
           <dd className="text-right tabular-nums">{formatBRL(result.baseCents)}</dd>
           <dt>Spread ({spread || "0"}%)</dt>
           <dd className="text-right tabular-nums">+ {formatBRL(result.spreadCents)}</dd>
           <dt>IOF ({iof}%)</dt>
           <dd className="text-right tabular-nums">+ {formatBRL(result.iofCents)}</dd>
-          <dt className="border-t border-emerald-300 pt-2 text-base font-semibold dark:border-emerald-800">Total estimado na fatura</dt>
-          <dd className="border-t border-emerald-300 pt-2 text-right text-xl font-semibold tabular-nums dark:border-emerald-800">
+          <dt className="border-t border-line-strong pt-2 text-base font-semibold">Total estimado na fatura</dt>
+          <dd className="border-t border-line-strong pt-2 text-right text-xl font-semibold tabular-nums">
             {formatBRL(result.totalCents)}
           </dd>
-          <dt className="text-xs text-zinc-600 dark:text-zinc-400">Cotação efetiva</dt>
-          <dd className="text-right text-xs text-zinc-600 dark:text-zinc-400">
+          <dt className="text-xs text-ink-muted">Cotação efetiva</dt>
+          <dd className="text-right text-xs text-ink-muted">
             R$ {formatRateMicro(result.effectiveRateMicro)} por {currency} (+{formatBps(Math.max(0, result.extraBps))}% sobre a cotação)
           </dd>
         </dl>
@@ -260,7 +260,7 @@ export function FxCalculator({
       </Field>
 
       <Submit disabled={!result} />
-      <p className="text-xs text-zinc-500 sm:col-span-2">
+      <p className="text-xs text-ink-subtle sm:col-span-2">
         Isto é uma estimativa. O valor oficial é o da fatura: confirme-o depois aqui, ou importe a fatura e o app atualiza.
       </p>
     </form>

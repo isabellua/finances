@@ -69,11 +69,11 @@ export function TransactionForm({
   );
 
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <form action={action} className="flex flex-col gap-4 rounded-xl border border-line bg-raised p-4">
       <input type="hidden" name="kind" value={kind} />
       {initial && <input type="hidden" name="id" value={initial.id} />}
 
-      <div role="tablist" aria-label="Tipo de lançamento" className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
+      <div role="tablist" aria-label="Tipo de lançamento" className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1 sm:grid-cols-4">
         {KINDS.map((k) => (
           <button
             key={k.value}
@@ -83,8 +83,8 @@ export function TransactionForm({
             onClick={() => setKind(k.value)}
             className={`rounded-md px-2 py-2 text-sm font-medium ${
               kind === k.value
-                ? "bg-white text-emerald-800 shadow-sm dark:bg-zinc-800 dark:text-emerald-300"
-                : "text-zinc-600 dark:text-zinc-400"
+                ? "bg-raised text-accent-text shadow-sm"
+                : "text-ink-muted"
             }`}
           >
             {k.label}
