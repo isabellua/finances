@@ -5,13 +5,17 @@ import { usePathname } from "next/navigation";
 import { signOut } from "@/app/login/actions";
 
 const links = [
-  { href: "/", label: "Resumo", icon: "◔" },
-  { href: "/lancamentos", label: "Lançamentos", icon: "≡" },
-  { href: "/pagar", label: "A pagar", icon: "⏱" },
-  { href: "/importar", label: "Importar", icon: "⇪" },
-  { href: "/contas", label: "Contas", icon: "▣" },
-  { href: "/categorias", label: "Categorias", icon: "◈" },
+  { href: "/", label: "Resumo", icon: "◔", primary: true },
+  { href: "/lancamentos", label: "Lançamentos", icon: "≡", primary: true },
+  { href: "/pagar", label: "A pagar", icon: "⏱", primary: true },
+  { href: "/importar", label: "Importar", icon: "⇪", primary: true },
+  { href: "/contas", label: "Contas", icon: "▣", primary: true },
+  { href: "/cambio", label: "Câmbio", icon: "$", primary: false },
+  { href: "/categorias", label: "Categorias", icon: "◈", primary: false },
 ];
+
+// No celular, o que não cabe na barra fica atrás de "Mais".
+const MORE = { href: "/mais", label: "Mais", icon: "⋯" };
 
 function active(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -56,13 +60,21 @@ export function Nav({ email }: { email: string | undefined }) {
         aria-label="Principal"
         className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-zinc-800 dark:bg-zinc-950"
       >
-        {links.map((l) => (
+        {[...links.filter((l) => l.primary), MORE].map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            aria-current={active(pathname, l.href) ? "page" : undefined}
+            aria-current={
+              active(pathname, l.href) ||
+              (l.href === MORE.href && links.some((x) => !x.primary && active(pathname, x.href)))
+                ? "page"
+                : undefined
+            }
             className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
-              active(pathname, l.href) ? "text-emerald-700" : "text-zinc-500"
+              active(pathname, l.href) ||
+              (l.href === MORE.href && links.some((x) => !x.primary && active(pathname, x.href)))
+                ? "text-emerald-700"
+                : "text-zinc-500"
             }`}
           >
             <span aria-hidden className="text-lg leading-none">{l.icon}</span>

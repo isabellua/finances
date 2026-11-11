@@ -5,6 +5,7 @@ import { MonthNav } from "@/components/month-nav";
 import { Card, Empty, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { currentMonth, isValidMonth, monthRange, todayISO } from "@/lib/dates";
+import { formatForeign, formatRateMicro } from "@/lib/fx";
 import { formatBRL } from "@/lib/money";
 import { summarize } from "@/lib/summary";
 import {
@@ -39,7 +40,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
   const [{ data: txs }, { data: accounts }, { data: cards }, { data: cats }] = await Promise.all([
     supabase
       .from("transactions")
-      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
+      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id,fx_currency,fx_amount_minor,fx_rate_micro,fx_estimated")
       .gte("occurred_on", start)
       .lt("occurred_on", end)
       .order("occurred_on", { ascending: false })
@@ -138,6 +139,16 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
                   <p className="truncate text-xs text-zinc-500">
                     {[t.category_id ? catName.get(t.category_id) : null, where(t)].filter(Boolean).join(" · ")}
                   </p>
+                  {t.fx_currency && t.fx_amount_minor && t.fx_rate_micro && (
+                    <p className="truncate text-xs text-zinc-500">
+                      {formatForeign(t.fx_currency, t.fx_amount_minor)} a {formatRateMicro(t.fx_rate_micro)}
+                      {t.fx_estimated && (
+                        <a href="/cambio" className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                          estimativa
+                        </a>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <span className={`font-medium tabular-nums ${t.kind === "income" ? "text-emerald-700" : ""}`}>
                   {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}

@@ -9,7 +9,7 @@ import { buildHashes } from "@/lib/import/hash";
 import { matchRule, merchantKey, type Rule } from "@/lib/import/merchant";
 import { looksLikeOFX, parseOFX } from "@/lib/import/ofx";
 import type { ParsedRow } from "@/lib/import/types";
-import { checkDuplicates, importTransactions } from "./actions";
+import { checkDuplicates, importTransactions, type FxMatch } from "./actions";
 
 type Target = { key: string; label: string; isCard: boolean };
 type Cat = { id: string; name: string };
@@ -23,6 +23,9 @@ type Row = ParsedRow & {
   /** Motivo de a linha estar desmarcada ou bloqueada. */
   note: string | null;
   blocked: boolean;
+  /** Estimativa de compra internacional que esta linha provavelmente fecha. */
+  merge: FxMatch | null;
+  mergeOn: boolean;
 };
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -53,7 +56,7 @@ export function ImportWizard({
   const [mapping, setMapping] = useState<CsvMapping | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [busy, startBusy] = useTransition();
-  const [result, setResult] = useState<{ inserted: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{ inserted: number; skipped: number; merged: number } | null>(null);
 
   const isCard = targets.find((t) => t.key === target)?.isCard ?? false;
 
@@ -74,7 +77,7 @@ export function ImportWizard({
     const hashes = await buildHashes(target, parsed);
     const check = await checkDuplicates({
       target,
-      rows: parsed.map((r, i) => ({ hash: hashes[i], date: r.date, cents: Math.abs(r.amountCents) })),
+      rows: parsed.map((r, i) => ({ hash: hashes[i], date: r.date, cents: Math.abs(r.amountCents), expense: r.amountCents < 0 })),
     });
     if ("error" in check) {
       setError(check.error);
@@ -89,7 +92,10 @@ export function ImportWizard({
         const cardCredit = isCard && r.amountCents > 0;
         const dup = hashDup.has(hashes[i]);
         const soft = softDup.has(hashes[i]);
-        const note = cardCredit
+        const merge = check.fxMatches[hashes[i]] ?? null;
+        const note = merge
+          ? null
+          : cardCredit
           ? "Crédito no cartão (pagamento ou estorno): não é importado"
           : dup
             ? "Já importada antes"
@@ -105,6 +111,8 @@ export function ImportWizard({
           remember: false,
           note,
           blocked: cardCredit,
+          merge,
+          mergeOn: merge !== null,
         };
       }),
     );
@@ -176,6 +184,7 @@ export function ImportWizard({
     startBusy(async () => {
       let inserted = 0;
       let skipped = 0;
+      let merged = 0;
       for (let i = 0; i < chosen.length; i += 500) {
         const part = chosen.slice(i, i + 500);
         const res = await importTransactions({
@@ -189,6 +198,7 @@ export function ImportWizard({
             hash: r.hash,
             remember: r.remember,
             pattern: merchantKey(r.description),
+            mergeTxId: r.merge && r.mergeOn ? r.merge.txId : null,
           })),
         });
         if ("error" in res) {
@@ -199,8 +209,9 @@ export function ImportWizard({
         }
         inserted += res.inserted;
         skipped += res.skipped;
+        merged += res.merged;
       }
-      setResult({ inserted, skipped });
+      setResult({ inserted, skipped, merged });
       setRows(null);
     });
   }
@@ -219,6 +230,7 @@ export function ImportWizard({
         <p className="text-lg font-semibold">Importação concluída</p>
         <p className="text-sm">
           {result.inserted} lançamento(s) importado(s)
+          {result.merged > 0 ? `, ${result.merged} estimativa(s) de compra internacional atualizada(s) com o valor real` : ""}
           {result.skipped > 0 ? `, ${result.skipped} já existia(m) e foi(ram) ignorado(s)` : ""}.
         </p>
         <div className="flex gap-2">
@@ -359,6 +371,21 @@ export function ImportWizard({
                 <div className="min-w-40 flex-1">
                   <p className="truncate text-sm font-medium">{r.description || "(sem descrição)"}</p>
                   {r.note && <p className="text-xs text-amber-700 dark:text-amber-400">{r.note}</p>}
+                  {r.merge && (
+                    <label className="mt-1 flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+                      <input
+                        type="checkbox"
+                        checked={r.mergeOn}
+                        onChange={(e) =>
+                          setRows((prev) => prev && prev.map((x, j) => (j === i ? { ...x, mergeOn: e.target.checked } : x)))
+                        }
+                      />
+                      <span>
+                        Parece a compra internacional “{r.merge.description}” (estimativa {formatBRL(r.merge.estimatedCents)}).
+                        Marcado: atualiza a estimativa com este valor, sem criar lançamento novo.
+                      </span>
+                    </label>
+                  )}
                 </div>
                 <select
                   aria-label={`Categoria de ${r.description}`}

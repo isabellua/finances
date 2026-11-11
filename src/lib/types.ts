@@ -24,6 +24,9 @@ export type CreditCard = {
   due_day: number;
   last4: string | null;
   archived: boolean;
+  fx_spread_bps?: number | null;
+  fx_iof_bps?: number | null;
+  fx_rate_rule?: "purchase_date" | "closing_date" | "due_date";
 };
 
 export type Category = {
@@ -41,6 +44,13 @@ export type Transaction = {
   account_id: string | null;
   card_id: string | null;
   transfer_account_id: string | null;
+  fx_currency?: string | null;
+  fx_amount_minor?: number | null;
+  fx_rate_micro?: number | null;
+  fx_spread_bps?: number | null;
+  fx_iof_bps?: number | null;
+  fx_estimated_cents?: number | null;
+  fx_estimated?: boolean;
 };
 
 export type AccountBalance = { account_id: string; balance_cents: number };

@@ -2,7 +2,12 @@
 
 App web de controle financeiro da família. Plano completo em [PLANO.md](PLANO.md).
 
-**Estado: Fase 1** — login, contas, cartões, categorias, lançamento manual e resumo mensal.
+**Estado: Fases 1 a 4**
+- Fase 1: login, contas, cartões, categorias, lançamento manual (criar, editar, excluir) e resumo mensal.
+- Fase 2: importação de extrato e fatura (OFX/CSV) com detecção de duplicatas e categorias aprendidas.
+- Fase 3: contas a pagar (assinaturas, contas fixas, parcelas, avulsas), vencimentos e calendário `.ics`.
+- Fase 4: calculadora de compra internacional (PTAX do Banco Central + spread + IOF), com fechamento do ciclo ao importar a fatura.
+- Pendente: lembretes por e-mail/notificação, previsão completa e saúde financeira (Fase 5).
 
 ## Rodar localmente
 
