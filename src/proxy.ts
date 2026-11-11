@@ -22,9 +22,10 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims renova o token quando preciso (e grava os cookies via setAll acima)
+  // e valida a assinatura localmente, sem ida e volta de rede quando possível.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const isLogin = request.nextUrl.pathname === "/login";
 

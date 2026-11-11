@@ -27,7 +27,15 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
   const sp = await searchParams;
   const { supabase } = await requireUser();
 
-  const [{ data: accounts }, { data: cards }, { data: balances }] = await Promise.all([
+  // Uma única rodada ao banco: as seis consultas são independentes.
+  const [
+    { data: accounts },
+    { data: cards },
+    { data: balances },
+    { data: archivedAccounts },
+    { data: archivedCards },
+    { data: allCards },
+  ] = await Promise.all([
     supabase
       .from("accounts")
       .select("id,name,institution,type,opening_balance_cents,archived")
@@ -41,13 +49,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
     supabase.from("account_balances").select("account_id,balance_cents").overrideTypes<AccountBalance[]>(),
-  ]);
 
-  const balanceById = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
-  const list = accounts ?? [];
-
-  // Arquivadas: ficam fora das telas de uso, mas aqui dá para restaurar ou excluir.
-  const [{ data: archivedAccounts }, { data: archivedCards }, { data: allCards }] = await Promise.all([
     supabase
       .from("accounts")
       .select("id,name,institution,type,opening_balance_cents,archived")
@@ -62,6 +64,11 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
       .overrideTypes<CreditCard[]>(),
     supabase.from("credit_cards").select("id,account_id").overrideTypes<{ id: string; account_id: string }[]>(),
   ]);
+
+  const balanceById = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
+  const list = accounts ?? [];
+
+  // Arquivadas: ficam fora das telas de uso, mas aqui dá para restaurar ou excluir.
 
   async function countFor(filter: string): Promise<number> {
     const { count } = await supabase
