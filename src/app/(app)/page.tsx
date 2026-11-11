@@ -3,7 +3,8 @@ import { str } from "@/components/flash";
 import { MonthNav } from "@/components/month-nav";
 import { Card, Empty, PageHeader, btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import { currentMonth, isValidMonth, monthRange } from "@/lib/dates";
+import { currentMonth, formatDateBR, isValidMonth, monthRange, todayISO } from "@/lib/dates";
+import { loadPayables } from "@/lib/payables";
 import { formatBRL } from "@/lib/money";
 import { summarize } from "@/lib/summary";
 import type { Account, AccountBalance, Category, Transaction } from "@/lib/types";
@@ -15,7 +16,7 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
   const { start, end } = monthRange(month);
   const { supabase } = await requireUser();
 
-  const [{ data: txs }, { data: cats }, { data: accounts }, { data: balances }] = await Promise.all([
+  const [{ data: txs }, { data: cats }, { data: accounts }, { data: balances }, payables] = await Promise.all([
     supabase
       .from("transactions")
       .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
@@ -30,7 +31,14 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
       .order("created_at")
       .overrideTypes<Account[]>(),
     supabase.from("account_balances").select("account_id,balance_cents").overrideTypes<AccountBalance[]>(),
+    loadPayables(supabase, todayISO(), 14),
   ]);
+
+  // Atrasadas + o que vence nos próximos 7 dias (e ainda não foi pago).
+  const attention = payables.rows
+    .filter((r) => r.status === "overdue" || (r.status === "due_soon" && r.daysUntil <= 7))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const overdueCount = attention.filter((r) => r.status === "overdue").length;
 
   const s = summarize(txs ?? []);
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
@@ -55,6 +63,31 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
           <Link href="/contas" className={`${btnPrimary} mt-2 w-fit`}>Cadastrar primeira conta</Link>
         )}
       </Card>
+
+
+      {attention.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-semibold">
+              Vencimentos{overdueCount > 0 && <span className="ml-2 text-sm font-medium text-red-700">{overdueCount} atrasada(s)</span>}
+            </h2>
+            <Link href="/pagar" className="text-sm underline">Ver tudo</Link>
+          </div>
+          <Card className="!p-0">
+            <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+              {attention.slice(0, 5).map((r) => (
+                <li key={`${r.commitment.id}|${r.seq}`} className="flex items-center gap-3 p-3">
+                  <span className={`w-12 shrink-0 text-xs ${r.status === "overdue" ? "font-semibold text-red-700" : "text-zinc-500"}`}>
+                    {formatDateBR(r.date).slice(0, 5)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{r.commitment.description}</span>
+                  <span className="font-medium tabular-nums">{formatBRL(r.commitment.amount_cents)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
 
       <section className="grid grid-cols-3 gap-2 text-center">
         <Card className="!p-3">

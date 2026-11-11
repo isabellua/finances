@@ -24,3 +24,31 @@ describe("dates", () => {
     expect(todayISO(new Date("2026-11-11T01:00:00Z"))).toBe("2026-11-10");
   });
 });
+
+import { addDays, addMonthsClamped, daysBetween } from "./dates";
+
+describe("addMonthsClamped", () => {
+  it("limita ao último dia do mês sem deslizar a âncora", () => {
+    expect(addMonthsClamped("2026-01-31", 1)).toBe("2026-02-28");
+    expect(addMonthsClamped("2026-01-31", 2)).toBe("2026-03-31");
+    expect(addMonthsClamped("2028-01-31", 1)).toBe("2028-02-29");
+    expect(addMonthsClamped("2026-01-30", 3)).toBe("2026-04-30");
+  });
+  it("cruza anos", () => {
+    expect(addMonthsClamped("2026-11-15", 3)).toBe("2027-02-15");
+    expect(addMonthsClamped("2026-11-15", 12)).toBe("2027-11-15");
+    expect(addMonthsClamped("2026-12-05", 0)).toBe("2026-12-05");
+  });
+});
+
+describe("daysBetween / addDays", () => {
+  it("conta dias com sinal", () => {
+    expect(daysBetween("2026-11-10", "2026-11-17")).toBe(7);
+    expect(daysBetween("2026-11-10", "2026-11-03")).toBe(-7);
+    expect(daysBetween("2026-12-30", "2027-01-02")).toBe(3);
+  });
+  it("soma dias cruzando mês", () => {
+    expect(addDays("2026-11-28", 5)).toBe("2026-12-03");
+    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
+  });
+});

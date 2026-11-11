@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions";
 const links = [
   { href: "/", label: "Resumo", icon: "◔" },
   { href: "/lancamentos", label: "Lançamentos", icon: "≡" },
+  { href: "/pagar", label: "A pagar", icon: "⏱" },
   { href: "/importar", label: "Importar", icon: "⇪" },
   { href: "/contas", label: "Contas", icon: "▣" },
   { href: "/categorias", label: "Categorias", icon: "◈" },
@@ -53,14 +54,14 @@ export function Nav({ email }: { email: string | undefined }) {
 
       <nav
         aria-label="Principal"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-zinc-800 dark:bg-zinc-950"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-zinc-800 dark:bg-zinc-950"
       >
         {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
             aria-current={active(pathname, l.href) ? "page" : undefined}
-            className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
+            className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
               active(pathname, l.href) ? "text-emerald-700" : "text-zinc-500"
             }`}
           >
