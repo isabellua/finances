@@ -25,6 +25,11 @@ App web de controle financeiro da família. Plano completo em [PLANO.md](PLANO.m
    ```
 5. Abra http://localhost:3000, crie sua conta em "Criar conta". Se a confirmação por e-mail estiver ligada no Supabase (Authentication > Providers > Email), confirme antes de entrar.
 
+## Região
+
+Funções da Vercel (`vercel.json`, `gru1`) e banco Supabase (`sa-east-1`) ficam ambos em **São Paulo**.
+Se mudar um, mude o outro: função e banco em continentes diferentes fazem cada consulta atravessar o oceano.
+
 ## Deploy na Vercel com Supabase pelo Marketplace
 
 1. Vercel > Add New > Project > importe `isabellua/finances` (framework Next.js detectado).
