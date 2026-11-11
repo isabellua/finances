@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { signInMessage, signUpMessage } from "@/lib/auth-errors";
 import { back } from "@/lib/flash";
 
 const credentials = z.object({
@@ -23,7 +24,7 @@ export async function signIn(formData: FormData) {
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) back("/login", "erro", "E-mail ou senha incorretos.");
+  if (error) back("/login", "erro", signInMessage(error.code));
 
   redirect("/");
 }
@@ -34,7 +35,7 @@ export async function signUp(formData: FormData) {
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp(parsed.data);
-  if (error) back("/login", "erro", "Não foi possível criar a conta.");
+  if (error) back("/login", "erro", signUpMessage(error.code));
 
   // Com confirmação de e-mail ligada no Supabase, não há sessão ainda.
   if (!data.session) {
