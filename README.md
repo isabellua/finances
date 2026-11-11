@@ -20,6 +20,15 @@ App web de controle financeiro da família. Plano completo em [PLANO.md](PLANO.m
    ```
 5. Abra http://localhost:3000, crie sua conta em "Criar conta". Se a confirmação por e-mail estiver ligada no Supabase (Authentication > Providers > Email), confirme antes de entrar.
 
+## Deploy na Vercel com Supabase pelo Marketplace
+
+1. Vercel > Add New > Project > importe `isabellua/finances` (framework Next.js detectado).
+2. No projeto: Storage (ou Integrations) > Supabase > criar banco e conectar ao projeto. A Vercel injeta as variáveis no projeto.
+3. Confira em Settings > Environment Variables que existem `NEXT_PUBLIC_SUPABASE_URL` e uma chave pública (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` ou `NEXT_PUBLIC_SUPABASE_ANON_KEY`; o app aceita as duas). `SUPABASE_SERVICE_ROLE_KEY`, se existir, **não é usada** por este app e não deve ser exposta.
+4. Aplique a migração `supabase/migrations/*.sql` no banco (SQL Editor do Supabase).
+5. Para rodar local com as mesmas variáveis: `npx vercel link` e `npx vercel env pull .env.local`.
+6. Supabase > Authentication > URL Configuration: adicione a URL de produção da Vercel em Site URL e Redirect URLs.
+
 ## Comandos
 
 ```bash
