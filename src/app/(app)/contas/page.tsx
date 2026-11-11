@@ -15,6 +15,10 @@ import {
   archiveCard,
   createAccount,
   createCard,
+  deleteAccountForever,
+  deleteCardForever,
+  restoreAccount,
+  restoreCard,
   updateAccount,
   updateCard,
 } from "./actions";
@@ -41,6 +45,48 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
 
   const balanceById = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
   const list = accounts ?? [];
+
+  // Arquivadas: ficam fora das telas de uso, mas aqui dá para restaurar ou excluir.
+  const [{ data: archivedAccounts }, { data: archivedCards }, { data: allCards }] = await Promise.all([
+    supabase
+      .from("accounts")
+      .select("id,name,institution,type,opening_balance_cents,archived")
+      .eq("archived", true)
+      .order("created_at")
+      .overrideTypes<Account[]>(),
+    supabase
+      .from("credit_cards")
+      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived")
+      .eq("archived", true)
+      .order("created_at")
+      .overrideTypes<CreditCard[]>(),
+    supabase.from("credit_cards").select("id,account_id").overrideTypes<{ id: string; account_id: string }[]>(),
+  ]);
+
+  async function countFor(filter: string): Promise<number> {
+    const { count } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .or(filter);
+    return count ?? 0;
+  }
+
+  const archivedAcc = await Promise.all(
+    (archivedAccounts ?? []).map(async (a) => {
+      const cardIds = (allCards ?? []).filter((c) => c.account_id === a.id).map((c) => c.id);
+      const parts = [`account_id.eq.${a.id}`, `transfer_account_id.eq.${a.id}`];
+      if (cardIds.length > 0) parts.push(`card_id.in.(${cardIds.join(",")})`);
+      return { account: a, txCount: await countFor(parts.join(",")) };
+    }),
+  );
+  const archivedAccountIds = new Set((archivedAccounts ?? []).map((a) => a.id));
+  // Cartões arquivados de contas ativas (os de conta arquivada saem junto com a conta).
+  const archivedLooseCards = await Promise.all(
+    (archivedCards ?? [])
+      .filter((c) => !archivedAccountIds.has(c.account_id))
+      .map(async (c) => ({ card: c, txCount: await countFor(`card_id.eq.${c.id}`) })),
+  );
+  const archivedTotal = archivedAcc.length + archivedLooseCards.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,7 +130,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                       <form action={archiveCard}>
                         <input type="hidden" name="id" value={c.id} />
                         <ConfirmButton
-                          message={`Arquivar o cartão ${c.name}? Os lançamentos dele continuam existindo.`}
+                          message={`Arquivar o cartão ${c.name}? Ele sai das telas de uso, mas os lançamentos continuam existindo. Fica em “Arquivadas”, no fim da página.`}
                           className="text-xs text-zinc-500 underline"
                         >
                           Arquivar
@@ -190,7 +236,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
             <form action={archiveAccount} className="text-right">
               <input type="hidden" name="id" value={a.id} />
               <ConfirmButton
-                message={`Arquivar a conta ${a.name}? Os lançamentos dela continuam existindo.`}
+                message={`Arquivar a conta ${a.name}? Ela sai das telas de uso e do saldo total, mas os lançamentos continuam existindo. Fica em “Arquivadas”, no fim da página.`}
                 className="text-xs text-zinc-500 underline"
               >
                 Arquivar conta
@@ -226,6 +272,77 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
           </form>
         </Card>
       </details>
+
+      {archivedTotal > 0 && (
+        <details id="arquivadas" open={str(sp.arq) === "1"} className="group">
+          <summary className={`${btnGhost} w-fit cursor-pointer list-none`}>
+            Arquivadas ({archivedTotal})
+          </summary>
+          <div className="mt-3 flex flex-col gap-3">
+            <p className="text-sm text-zinc-500">
+              Itens arquivados não aparecem nos formulários nem no saldo. Restaure para voltar a usar, ou exclua de vez.
+              Excluir apaga também os lançamentos ligados ao item e não tem volta.
+            </p>
+
+            {archivedAcc.map(({ account: a, txCount }) => {
+              const cardsOf = (archivedCards ?? []).filter((c) => c.account_id === a.id);
+              return (
+                <Card key={a.id} className="flex flex-col gap-3">
+                  <div>
+                    <p className="font-semibold">{a.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      {ACCOUNT_TYPE_LABEL[a.type]} · {txCount} lançamento(s) ligado(s)
+                      {cardsOf.length > 0 ? ` · ${cardsOf.length} cartão(ões): ${cardsOf.map((c) => c.name).join(", ")}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <form action={restoreAccount}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <button className={btnGhost}>Restaurar</button>
+                    </form>
+                    <form action={deleteAccountForever}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <ConfirmButton
+                        message={`Excluir DEFINITIVAMENTE a conta ${a.name}?\n\nSerão apagados ${txCount} lançamento(s)${cardsOf.length > 0 ? ` e ${cardsOf.length} cartão(ões)` : ""}, incluindo transferências entre esta conta e as outras (isso altera o saldo das outras). Não tem como desfazer.`}
+                        className={`${btnGhost} text-red-700`}
+                      >
+                        Excluir definitivamente
+                      </ConfirmButton>
+                    </form>
+                  </div>
+                </Card>
+              );
+            })}
+
+            {archivedLooseCards.map(({ card: c, txCount }) => (
+              <Card key={c.id} className="flex flex-col gap-3">
+                <div>
+                  <p className="font-semibold">
+                    {c.name}
+                    {c.last4 ? <span className="text-zinc-500"> •••• {c.last4}</span> : null}
+                  </p>
+                  <p className="text-xs text-zinc-500">Cartão · {txCount} lançamento(s) ligado(s)</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <form action={restoreCard}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <button className={btnGhost}>Restaurar</button>
+                  </form>
+                  <form action={deleteCardForever}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <ConfirmButton
+                      message={`Excluir DEFINITIVAMENTE o cartão ${c.name}?\n\nSerão apagados ${txCount} lançamento(s) (compras e pagamentos de fatura dele). Não tem como desfazer.`}
+                      className={`${btnGhost} text-red-700`}
+                    >
+                      Excluir definitivamente
+                    </ConfirmButton>
+                  </form>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

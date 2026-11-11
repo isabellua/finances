@@ -45,23 +45,25 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
       .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false })
       .overrideTypes<Transaction[]>(),
+    // Todas (inclusive arquivadas): lançamentos antigos ainda precisam mostrar o nome.
     supabase
       .from("accounts")
       .select("id,name,institution,type,opening_balance_cents,archived")
-      .eq("archived", false)
       .order("created_at")
       .overrideTypes<Account[]>(),
     supabase
       .from("credit_cards")
       .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived")
-      .eq("archived", false)
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
     supabase.from("categories").select("id,name").order("name").overrideTypes<Category[]>(),
   ]);
 
-  const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
-  const cardName = new Map((cards ?? []).map((c) => [c.id, c.name]));
+  const accountName = new Map((accounts ?? []).map((a) => [a.id, a.archived ? `${a.name} (arquivada)` : a.name]));
+  const cardName = new Map((cards ?? []).map((c) => [c.id, c.archived ? `${c.name} (arquivado)` : c.name]));
+  // Formulário de novo lançamento: só itens ativos.
+  const activeAccounts = (accounts ?? []).filter((a) => !a.archived);
+  const activeCards = (cards ?? []).filter((c) => !c.archived);
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
   const s = summarize(txs ?? []);
 
@@ -83,7 +85,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
     byDay.set(t.occurred_on, [...(byDay.get(t.occurred_on) ?? []), t]);
   }
 
-  const noAccounts = (accounts ?? []).length === 0;
+  const noAccounts = activeAccounts.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,8 +99,8 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
       ) : (
         <TransactionForm
           action={createTransaction}
-          accounts={(accounts ?? []).map((a) => ({ id: a.id, label: a.name }))}
-          cards={(cards ?? []).map((c) => ({
+          accounts={activeAccounts.map((a) => ({ id: a.id, label: a.name }))}
+          cards={activeCards.map((c) => ({
             id: c.id,
             accountId: c.account_id,
             label: c.last4 ? `${c.name} •••• ${c.last4}` : c.name,

@@ -76,7 +76,7 @@ export async function archiveAccount(formData: FormData) {
   if (error) back(PATH, "erro", "Não foi possível arquivar a conta.");
 
   revalidatePath(PATH);
-  back(PATH, "ok", "Conta arquivada.");
+  back(`${PATH}?arq=1`, "ok", "Conta arquivada. Ela está em “Arquivadas”, no fim desta página: lá dá para restaurar ou excluir.");
 }
 
 const day = (label: string) =>
@@ -146,7 +146,7 @@ export async function archiveCard(formData: FormData) {
   if (error) back(PATH, "erro", "Não foi possível arquivar o cartão.");
 
   revalidatePath(PATH);
-  back(PATH, "ok", "Cartão arquivado.");
+  back(`${PATH}?arq=1`, "ok", "Cartão arquivado. Ele está em “Arquivadas”, no fim desta página: lá dá para restaurar ou excluir.");
 }
 
 export async function updateAccount(formData: FormData) {
@@ -251,4 +251,96 @@ export async function updateCard(formData: FormData) {
 
   revalidatePath("/", "layout");
   back(PATH, "ok", "Cartão atualizado.");
+}
+
+
+const idSchema = z.uuid();
+
+export async function restoreAccount(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Conta inválida.");
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .update({ archived: false })
+    .eq("id", id.data)
+    .select("id");
+  if (error || !data?.length) back(`${PATH}?arq=1`, "erro", "Não foi possível restaurar a conta.");
+
+  revalidatePath("/", "layout");
+  back(PATH, "ok", "Conta restaurada. Os cartões dela continuam arquivados; restaure-os se precisar.");
+}
+
+export async function restoreCard(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Cartão inválido.");
+
+  const { data: card } = await supabase
+    .from("credit_cards")
+    .select("account_id")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!card) back(`${PATH}?arq=1`, "erro", "Cartão não encontrado.");
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("archived")
+    .eq("id", card.account_id)
+    .maybeSingle();
+  if (account?.archived) {
+    back(`${PATH}?arq=1`, "erro", "A conta deste cartão está arquivada. Restaure a conta primeiro.");
+  }
+
+  const { data, error } = await supabase
+    .from("credit_cards")
+    .update({ archived: false })
+    .eq("id", id.data)
+    .select("id");
+  if (error || !data?.length) back(`${PATH}?arq=1`, "erro", "Não foi possível restaurar o cartão.");
+
+  revalidatePath("/", "layout");
+  back(PATH, "ok", "Cartão restaurado.");
+}
+
+/** Exclusão definitiva: só do que já está arquivado. Apaga também os lançamentos ligados. */
+export async function deleteAccountForever(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Conta inválida.");
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("archived")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!account) back(`${PATH}?arq=1`, "erro", "Conta não encontrada.");
+  if (!account.archived) back(PATH, "erro", "Arquive a conta antes de excluir.");
+
+  const { data: removed, error } = await supabase.rpc("delete_account", { p_account: id.data });
+  if (error) back(`${PATH}?arq=1`, "erro", "Não foi possível excluir a conta. Nada foi apagado.");
+
+  revalidatePath("/", "layout");
+  back(`${PATH}?arq=1`, "ok", `Conta excluída junto com ${removed ?? 0} lançamento(s).`);
+}
+
+export async function deleteCardForever(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Cartão inválido.");
+
+  const { data: card } = await supabase
+    .from("credit_cards")
+    .select("archived")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!card) back(`${PATH}?arq=1`, "erro", "Cartão não encontrado.");
+  if (!card.archived) back(PATH, "erro", "Arquive o cartão antes de excluir.");
+
+  const { data: removed, error } = await supabase.rpc("delete_card", { p_card: id.data });
+  if (error) back(`${PATH}?arq=1`, "erro", "Não foi possível excluir o cartão. Nada foi apagado.");
+
+  revalidatePath("/", "layout");
+  back(`${PATH}?arq=1`, "ok", `Cartão excluído junto com ${removed ?? 0} lançamento(s).`);
 }
