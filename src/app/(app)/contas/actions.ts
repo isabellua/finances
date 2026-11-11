@@ -148,3 +148,107 @@ export async function archiveCard(formData: FormData) {
   revalidatePath(PATH);
   back(PATH, "ok", "Cartão arquivado.");
 }
+
+export async function updateAccount(formData: FormData) {
+  const { supabase } = await requireUser();
+
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Conta inválida.");
+
+  const parsed = accountSchema.safeParse({
+    institution: formData.get("institution") ?? "",
+    type: formData.get("type") ?? "checking",
+  });
+  if (!parsed.success) back(PATH, "erro", "Dados da conta inválidos.");
+
+  const institution =
+    parsed.data.institution || (parsed.data.type === "cash" ? "Dinheiro" : "");
+  if (!institution) back(PATH, "erro", "Informe o banco.");
+
+  const raw = String(formData.get("opening") ?? "").trim();
+  const negative = raw.startsWith("-");
+  const cents = raw === "" ? 0 : parseBRLToCents(negative ? raw.slice(1) : raw);
+  if (cents === null) back(PATH, "erro", "Saldo inicial inválido.");
+
+  // Mesma regra de nome da criação, sem contar a própria conta.
+  const { count } = await supabase
+    .from("accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("institution", institution)
+    .eq("type", parsed.data.type)
+    .eq("archived", false)
+    .neq("id", id.data);
+  const name = count && count > 0 ? `${institution} ${count + 1}` : institution;
+
+  const { data: updated, error } = await supabase
+    .from("accounts")
+    .update({
+      name,
+      institution,
+      type: parsed.data.type,
+      opening_balance_cents: negative ? -cents : cents,
+    })
+    .eq("id", id.data)
+    .select("id");
+  if (error || !updated?.length) back(PATH, "erro", "Não foi possível salvar a conta.");
+
+  // O nome do cartão deriva do banco da conta: mantém em sincronia.
+  const { data: cards } = await supabase
+    .from("credit_cards")
+    .select("id,brand")
+    .eq("account_id", id.data);
+  for (const c of cards ?? []) {
+    await supabase
+      .from("credit_cards")
+      .update({ name: `${institution} ${c.brand ?? ""}`.trim() })
+      .eq("id", c.id);
+  }
+
+  revalidatePath("/", "layout");
+  back(PATH, "ok", "Conta atualizada.");
+}
+
+export async function updateCard(formData: FormData) {
+  const { supabase } = await requireUser();
+
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Cartão inválido.");
+
+  const parsed = cardSchema.safeParse({
+    account_id: formData.get("account_id"),
+    brand: formData.get("brand") ?? "",
+    last4: formData.get("last4") ?? "",
+    closing_day: formData.get("closing_day"),
+    due_day: formData.get("due_day"),
+  });
+  if (!parsed.success) back(PATH, "erro", parsed.error.issues[0].message);
+
+  const rawLimit = String(formData.get("limit") ?? "").trim();
+  const limit = rawLimit === "" ? null : parseBRLToCents(rawLimit);
+  if (rawLimit !== "" && limit === null) back(PATH, "erro", "Limite inválido.");
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("institution,name")
+    .eq("id", parsed.data.account_id)
+    .single();
+  if (!account) back(PATH, "erro", "Conta não encontrada.");
+
+  const { data: updated, error } = await supabase
+    .from("credit_cards")
+    .update({
+      account_id: parsed.data.account_id,
+      name: `${account.institution ?? account.name} ${parsed.data.brand}`,
+      brand: parsed.data.brand,
+      last4: parsed.data.last4 || null,
+      credit_limit_cents: limit,
+      closing_day: parsed.data.closing_day,
+      due_day: parsed.data.due_day,
+    })
+    .eq("id", id.data)
+    .select("id");
+  if (error || !updated?.length) back(PATH, "erro", "Não foi possível salvar o cartão.");
+
+  revalidatePath("/", "layout");
+  back(PATH, "ok", "Cartão atualizado.");
+}

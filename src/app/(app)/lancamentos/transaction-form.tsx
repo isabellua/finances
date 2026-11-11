@@ -15,14 +15,26 @@ const KINDS: { value: Kind; label: string }[] = [
   { value: "invoice_payment", label: "Pagar fatura" },
 ];
 
-function Submit() {
+function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button disabled={pending} className={`${btnPrimary} sm:col-span-2`}>
-      {pending ? "Salvando…" : "Salvar lançamento"}
+      {pending ? "Salvando…" : label}
     </button>
   );
 }
+
+/** Valores iniciais ao editar. `source`/`target` no formato "a:<id>" ou "c:<id>". */
+export type TransactionInitial = {
+  id: string;
+  kind: Kind;
+  amount: string;
+  source: string;
+  target: string;
+  categoryId: string;
+  date: string;
+  description: string;
+};
 
 export function TransactionForm({
   action,
@@ -30,16 +42,24 @@ export function TransactionForm({
   cards,
   categories,
   today,
+  initial,
+  submitLabel = "Salvar lançamento",
 }: {
   action: (formData: FormData) => void | Promise<void>;
   accounts: Opt[];
   cards: CardOpt[];
   categories: Opt[];
   today: string;
+  initial?: TransactionInitial;
+  submitLabel?: string;
 }) {
-  const [kind, setKind] = useState<Kind>("expense");
-  const [payAccount, setPayAccount] = useState(accounts[0]?.id ?? "");
-
+  const [kind, setKind] = useState<Kind>(initial?.kind ?? "expense");
+  const [payAccount, setPayAccount] = useState(
+    initial?.kind === "invoice_payment" && initial.source.startsWith("a:")
+      ? initial.source.slice(2)
+      : (accounts[0]?.id ?? ""),
+  );
+  const first = (k: Kind) => initial?.kind === k;
   const accountOptions = (
     <>
       {accounts.map((a) => (
@@ -51,6 +71,7 @@ export function TransactionForm({
   return (
     <form action={action} className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
       <input type="hidden" name="kind" value={kind} />
+      {initial && <input type="hidden" name="id" value={initial.id} />}
 
       <div role="tablist" aria-label="Tipo de lançamento" className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
         {KINDS.map((k) => (
@@ -77,7 +98,8 @@ export function TransactionForm({
             name="amount"
             inputMode="decimal"
             required
-            autoFocus
+            autoFocus={!initial}
+            defaultValue={initial?.amount ?? ""}
             placeholder="0,00"
             className={`${inputCls} text-2xl font-semibold`}
           />
@@ -85,7 +107,7 @@ export function TransactionForm({
 
         {kind === "expense" && (
           <Field label="Pago com" className="sm:col-span-2">
-            <select name="source" required className={inputCls}>
+            <select name="source" required defaultValue={first("expense") ? initial?.source : undefined} className={inputCls}>
               <optgroup label="Contas">{accountOptions}</optgroup>
               {cards.length > 0 && (
                 <optgroup label="Cartões de crédito">
@@ -100,17 +122,22 @@ export function TransactionForm({
 
         {kind === "income" && (
           <Field label="Entrou em" className="sm:col-span-2">
-            <select name="source" required className={inputCls}>{accountOptions}</select>
+            <select name="source" required defaultValue={first("income") ? initial?.source : undefined} className={inputCls}>{accountOptions}</select>
           </Field>
         )}
 
         {kind === "transfer" && (
           <>
             <Field label="De">
-              <select name="source" required className={inputCls}>{accountOptions}</select>
+              <select name="source" required defaultValue={first("transfer") ? initial?.source : undefined} className={inputCls}>{accountOptions}</select>
             </Field>
             <Field label="Para">
-              <select name="target" required defaultValue={accounts[1] ? `a:${accounts[1].id}` : ""} className={inputCls}>
+              <select
+                name="target"
+                required
+                defaultValue={first("transfer") ? initial?.target : accounts[1] ? `a:${accounts[1].id}` : ""}
+                className={inputCls}
+              >
                 {accountOptions}
               </select>
             </Field>
@@ -123,6 +150,7 @@ export function TransactionForm({
               <select
                 name="target"
                 required
+                defaultValue={first("invoice_payment") ? initial?.target : undefined}
                 className={inputCls}
                 onChange={(e) => {
                   const card = cards.find((c) => `c:${c.id}` === e.target.value);
@@ -150,7 +178,7 @@ export function TransactionForm({
 
         {(kind === "expense" || kind === "income") && (
           <Field label="Categoria">
-            <select name="category_id" defaultValue="" className={inputCls}>
+            <select name="category_id" defaultValue={initial?.categoryId ?? ""} className={inputCls}>
               <option value="">Sem categoria</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
@@ -160,14 +188,14 @@ export function TransactionForm({
         )}
 
         <Field label="Data">
-          <input name="occurred_on" type="date" required defaultValue={today} className={inputCls} />
+          <input name="occurred_on" type="date" required defaultValue={initial?.date ?? today} className={inputCls} />
         </Field>
 
         <Field label="Descrição" hint="Opcional" className="sm:col-span-2">
-          <input name="description" maxLength={200} placeholder="Ex.: mercado, aluguel, Netflix…" className={inputCls} />
+          <input name="description" maxLength={200} defaultValue={initial?.description ?? ""} placeholder="Ex.: mercado, aluguel, Netflix…" className={inputCls} />
         </Field>
 
-        <Submit />
+        <Submit label={submitLabel} />
       </div>
     </form>
   );

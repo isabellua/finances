@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBRL, parseBRLToCents } from "./money";
+import { centsToInput, formatBRL, parseBRLToCents } from "./money";
 
 describe("parseBRLToCents", () => {
   it.each([
@@ -31,5 +31,21 @@ describe("parseBRLToCents", () => {
 describe("formatBRL", () => {
   it("formata centavos em reais", () => {
     expect(formatBRL(123456).replace(/\s/g, " ")).toBe("R$ 1.234,56");
+  });
+});
+
+describe("centsToInput", () => {
+  it.each([
+    [0, "0,00"],
+    [5, "0,05"],
+    [123456, "1234,56"],
+    [-1050, "-10,50"],
+  ])("%i -> %s", (cents, expected) => {
+    expect(centsToInput(cents)).toBe(expected);
+  });
+  it("ida e volta com parseBRLToCents", () => {
+    for (const c of [1, 99, 100, 123456, 99999999]) {
+      expect(parseBRLToCents(centsToInput(c))).toBe(c);
+    }
   });
 });

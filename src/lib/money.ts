@@ -37,3 +37,11 @@ export function parseBRLToCents(input: string): number | null {
   const cents = Number(int) * 100 + Number(frac.padEnd(2, "0"));
   return Number.isSafeInteger(cents) ? cents : null;
 }
+
+/** Centavos → texto para campo de formulário ("1234,56"), sem símbolo nem milhar. */
+export function centsToInput(cents: number): string {
+  const abs = Math.abs(cents);
+  const int = Math.floor(abs / 100);
+  const frac = String(abs % 100).padStart(2, "0");
+  return `${cents < 0 ? "-" : ""}${int},${frac}`;
+}

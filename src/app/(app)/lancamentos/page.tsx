@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ConfirmButton } from "@/components/confirm-button";
 import { Flash, str } from "@/components/flash";
 import { MonthNav } from "@/components/month-nav";
 import { Card, Empty, PageHeader } from "@/components/ui";
@@ -139,10 +141,23 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
                   {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}
                   {formatBRL(t.amount_cents)}
                 </span>
+                <Link
+                  href={`/lancamentos/${t.id}/editar`}
+                  aria-label={`Editar ${t.description || KIND_LABEL[t.kind]}`}
+                  className="rounded px-2 py-1 text-sm text-zinc-500 hover:text-emerald-700"
+                >
+                  Editar
+                </Link>
                 <form action={deleteTransaction}>
                   <input type="hidden" name="id" value={t.id} />
                   <input type="hidden" name="mes" value={month} />
-                  <button aria-label="Excluir lançamento" className="rounded px-2 py-1 text-zinc-400 hover:text-red-700">×</button>
+                  <ConfirmButton
+                    message="Excluir este lançamento?"
+                    aria-label="Excluir lançamento"
+                    className="rounded px-2 py-1 text-zinc-400 hover:text-red-700"
+                  >
+                    ×
+                  </ConfirmButton>
                 </form>
               </li>
             ))}

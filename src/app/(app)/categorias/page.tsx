@@ -1,5 +1,6 @@
 import { Flash, str } from "@/components/flash";
 import { Card, Empty, PageHeader, btnPrimary, inputCls } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
 import { requireUser } from "@/lib/auth";
 import type { Category } from "@/lib/types";
 import { createCategory, deleteCategory } from "./actions";
@@ -38,9 +39,13 @@ export default async function CategoriasPage({ searchParams }: PageProps<"/categ
                 {c.name}
                 <form action={deleteCategory}>
                   <input type="hidden" name="id" value={c.id} />
-                  <button aria-label={`Excluir ${c.name}`} className="rounded-full px-2 text-zinc-500 hover:text-red-700">
+                  <ConfirmButton
+                    message={`Excluir a categoria ${c.name}? Os lançamentos ficam sem categoria.`}
+                    aria-label={`Excluir ${c.name}`}
+                    className="rounded-full px-2 text-zinc-500 hover:text-red-700"
+                  >
                     ×
-                  </button>
+                  </ConfirmButton>
                 </form>
               </li>
             ))}
