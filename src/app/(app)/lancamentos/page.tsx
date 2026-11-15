@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Flash, str } from "@/components/flash";
 import { MonthNav } from "@/components/month-nav";
-import { Card, Empty, PageHeader } from "@/components/ui";
+import { Card, Empty, PageHeader, btnGhost, btnPrimary, inputCls } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { currentMonth, isValidMonth, monthRange, todayISO } from "@/lib/dates";
 import { formatForeign, formatRateMicro } from "@/lib/fx";
@@ -15,7 +15,7 @@ import {
   type CreditCard,
   type Transaction,
 } from "@/lib/types";
-import { createTransaction, deleteTransaction } from "./actions";
+import { createTransaction, deleteTransaction, markPaid } from "./actions";
 import { TransactionForm } from "./transaction-form";
 
 const dayFmt = new Intl.DateTimeFormat("pt-BR", {
@@ -37,15 +37,34 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
   const { start, end } = monthRange(month);
   const { supabase } = await requireUser();
 
+  // Busca e filtros (GET). Valores são validados antes de virar filtro.
+  const q = (str(sp.q) ?? "").trim().slice(0, 80);
+  const fConta = str(sp.conta);
+  const fCat = str(sp.cat);
+  const fTipo = str(sp.tipo);
+  const fSit = str(sp.sit);
+  const allMonths = str(sp.todos) === "1";
+  const filtering = Boolean(q || fConta || fCat || fTipo || fSit);
+  const uuidRe = /^[0-9a-f-]{36}$/i;
+
+  let txQuery = supabase
+    .from("transactions")
+    .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id,fx_currency,fx_amount_minor,fx_rate_micro,fx_estimated,status")
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (filtering && allMonths) txQuery = txQuery.limit(300);
+  else txQuery = txQuery.gte("occurred_on", start).lt("occurred_on", end);
+  if (q) txQuery = txQuery.ilike("description", `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
+  if (fConta && /^[ac]:[0-9a-f-]{36}$/i.test(fConta)) {
+    txQuery = fConta[0] === "a" ? txQuery.eq("account_id", fConta.slice(2)) : txQuery.eq("card_id", fConta.slice(2));
+  }
+  if (fCat === "none") txQuery = txQuery.is("category_id", null);
+  else if (fCat && uuidRe.test(fCat)) txQuery = txQuery.eq("category_id", fCat);
+  if (fTipo && ["income", "expense", "transfer", "invoice_payment"].includes(fTipo)) txQuery = txQuery.eq("kind", fTipo);
+  if (fSit === "paid" || fSit === "pending") txQuery = txQuery.eq("status", fSit);
+
   const [{ data: txs }, { data: accounts }, { data: cards }, { data: cats }] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id,fx_currency,fx_amount_minor,fx_rate_micro,fx_estimated")
-      .gte("occurred_on", start)
-      .lt("occurred_on", end)
-      .order("occurred_on", { ascending: false })
-      .order("created_at", { ascending: false })
-      .overrideTypes<Transaction[]>(),
+    txQuery.overrideTypes<Transaction[]>(),
     // Todas (inclusive arquivadas): lançamentos antigos ainda precisam mostrar o nome.
     supabase
       .from("accounts")
@@ -111,6 +130,53 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
         />
       )}
 
+      <form method="get" role="search" className="flex flex-col gap-3 rounded-xl border border-line bg-raised p-3">
+        <input type="hidden" name="mes" value={month} />
+        <input name="q" defaultValue={q} placeholder="Buscar por descrição…" aria-label="Buscar lançamento" className={inputCls} />
+        <div className="grid gap-2 sm:grid-cols-4">
+          <select name="conta" defaultValue={fConta ?? ""} aria-label="Conta ou cartão" className={inputCls}>
+            <option value="">Todas as contas e cartões</option>
+            <optgroup label="Contas">
+              {(accounts ?? []).map((a) => (
+                <option key={a.id} value={`a:${a.id}`}>{a.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Cartões">
+              {(cards ?? []).map((c) => (
+                <option key={c.id} value={`c:${c.id}`}>{c.name}</option>
+              ))}
+            </optgroup>
+          </select>
+          <select name="cat" defaultValue={fCat ?? ""} aria-label="Categoria" className={inputCls}>
+            <option value="">Todas as categorias</option>
+            <option value="none">Sem categoria</option>
+            {(cats ?? []).map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select name="tipo" defaultValue={fTipo ?? ""} aria-label="Tipo" className={inputCls}>
+            <option value="">Todos os tipos</option>
+            {Object.entries(KIND_LABEL).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+          <select name="sit" defaultValue={fSit ?? ""} aria-label="Situação" className={inputCls}>
+            <option value="">Pagos e previstos</option>
+            <option value="paid">Só pagos</option>
+            <option value="pending">Só previstos</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="todos" value="1" defaultChecked={allMonths} />
+            Buscar em todos os meses
+          </label>
+          <button className={btnPrimary}>Filtrar</button>
+          {filtering && <a href={`/lancamentos?mes=${month}`} className={btnGhost}>Limpar</a>}
+          {filtering && <span className="text-sm text-ink-muted">{(txs ?? []).length} resultado(s)</span>}
+        </div>
+      </form>
+
       <div className="grid grid-cols-3 gap-2 text-center text-sm">
         <Card className="!p-3">
           <p className="text-xs text-ink-subtle">Entradas</p>
@@ -126,7 +192,7 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
         </Card>
       </div>
 
-      {byDay.size === 0 && <Empty>Nenhum lançamento neste mês.</Empty>}
+      {byDay.size === 0 && <Empty>{filtering ? "Nenhum lançamento encontrado com esses filtros." : "Nenhum lançamento neste mês."}</Empty>}
 
       {[...byDay.entries()].map(([day, items]) => (
         <section key={day} className="flex flex-col gap-1">
@@ -150,6 +216,15 @@ export default async function LancamentosPage({ searchParams }: PageProps<"/lanc
                     </p>
                   )}
                 </div>
+                {t.status === "pending" && (
+                  <form action={markPaid}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <input type="hidden" name="mes" value={month} />
+                    <button title="Marcar como pago" className="rounded-full bg-warn-tint px-2 py-0.5 text-xs font-medium text-warn">
+                      Previsto · marcar pago
+                    </button>
+                  </form>
+                )}
                 <span className={`font-medium tabular-nums ${t.kind === "income" ? "text-pos" : ""}`}>
                   {t.kind === "income" ? "+" : t.kind === "expense" ? "−" : ""}
                   {formatBRL(t.amount_cents)}

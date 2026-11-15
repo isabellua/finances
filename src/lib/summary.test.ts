@@ -26,6 +26,28 @@ describe("summarize", () => {
       expenseCents: 0,
       netCents: 0,
       byCategory: [],
+      pendingIncomeCents: 0,
+      pendingExpenseCents: 0,
     });
+  });
+
+  it("previsto fica separado e não entra nos totais nem nas categorias", () => {
+    const s = summarize([
+      { kind: "income", amount_cents: 1000, category_id: null, status: "paid" },
+      { kind: "expense", amount_cents: 300, category_id: "a", status: "paid" },
+      { kind: "expense", amount_cents: 700, category_id: "a", status: "pending" },
+      { kind: "income", amount_cents: 500, category_id: null, status: "pending" },
+      { kind: "transfer", amount_cents: 999, category_id: null, status: "pending" },
+    ]);
+    expect(s.incomeCents).toBe(1000);
+    expect(s.expenseCents).toBe(300);
+    expect(s.netCents).toBe(700);
+    expect(s.pendingIncomeCents).toBe(500);
+    expect(s.pendingExpenseCents).toBe(700);
+    expect(s.byCategory).toEqual([{ categoryId: "a", totalCents: 300 }]);
+  });
+
+  it("sem status conta como pago", () => {
+    expect(summarize([{ kind: "expense", amount_cents: 100, category_id: null }]).expenseCents).toBe(100);
   });
 });

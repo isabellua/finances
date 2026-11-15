@@ -22,7 +22,7 @@ export default async function EditarLancamentoPage({
   const [{ data: tx }, { data: accounts }, { data: cards }, { data: cats }] = await Promise.all([
     supabase
       .from("transactions")
-      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
+      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id,status")
       .eq("id", id)
       .maybeSingle()
       .overrideTypes<Transaction>(),
@@ -59,6 +59,7 @@ export default async function EditarLancamentoPage({
     categoryId: tx.category_id ?? "",
     date: tx.occurred_on,
     description: tx.description,
+    status: tx.status ?? "paid",
   };
 
   return (

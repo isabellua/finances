@@ -34,6 +34,7 @@ export type TransactionInitial = {
   categoryId: string;
   date: string;
   description: string;
+  status?: "paid" | "pending";
 };
 
 export function TransactionForm({
@@ -189,6 +190,13 @@ export function TransactionForm({
 
         <Field label="Data">
           <input name="occurred_on" type="date" required defaultValue={initial?.date ?? today} className={inputCls} />
+        </Field>
+
+        <Field label="Situação" hint="Previsto não entra no saldo até ser marcado como pago.">
+          <select name="status" defaultValue={initial?.status ?? "paid"} className={inputCls}>
+            <option value="paid">Pago / recebido</option>
+            <option value="pending">Previsto</option>
+          </select>
         </Field>
 
         <Field label="Descrição" hint="Opcional" className="sm:col-span-2">

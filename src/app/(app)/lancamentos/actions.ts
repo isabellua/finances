@@ -12,6 +12,7 @@ const schema = z.object({
   kind: z.enum(["income", "expense", "transfer", "invoice_payment"]),
   occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
   description: z.string().trim().max(200, "Descrição muito longa."),
+  status: z.enum(["paid", "pending"]),
   category_id: z.union([z.uuid(), z.literal("")]),
   // "a:<uuid>" = conta, "c:<uuid>" = cartão
   source: z.string().regex(/^[ac]:[0-9a-f-]{36}$/i, "Escolha a origem."),
@@ -29,6 +30,7 @@ function buildRow(formData: FormData, errPath: string) {
     kind: formData.get("kind"),
     occurred_on: formData.get("occurred_on"),
     description: formData.get("description") ?? "",
+    status: formData.get("status") ?? "paid",
     category_id: formData.get("category_id") ?? "",
     source: formData.get("source") ?? "",
     target: formData.get("target") ?? "",
@@ -48,6 +50,7 @@ function buildRow(formData: FormData, errPath: string) {
     amount_cents: amount,
     occurred_on: d.occurred_on,
     description: d.description,
+    status: d.status,
     category_id: null as string | null,
     account_id: null as string | null,
     card_id: null as string | null,
@@ -131,4 +134,23 @@ export async function deleteTransaction(formData: FormData) {
   refresh();
   const mes = String(formData.get("mes") ?? "");
   back(/^\d{4}-\d{2}$/.test(mes) ? `${PATH}?mes=${mes}` : PATH, "ok", "Lançamento excluído.");
+}
+
+/** Previsto vira pago (entra no saldo). */
+export async function markPaid(formData: FormData) {
+  const { supabase } = await requireUser();
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) back(PATH, "erro", "Lançamento inválido.");
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .update({ status: "paid" })
+    .eq("id", id.data)
+    .eq("status", "pending")
+    .select("id");
+  if (error || !data?.length) back(PATH, "erro", "Não foi possível marcar como pago.");
+
+  refresh();
+  const mes = String(formData.get("mes") ?? "");
+  back(/^\d{4}-\d{2}$/.test(mes) ? `${PATH}?mes=${mes}` : PATH, "ok", "Marcado como pago.");
 }

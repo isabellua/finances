@@ -32,6 +32,8 @@ export type CreditCard = {
 export type Category = {
   id: string;
   name: string;
+  color?: string | null;
+  icon?: string | null;
 };
 
 export type Transaction = {
@@ -51,6 +53,7 @@ export type Transaction = {
   fx_iof_bps?: number | null;
   fx_estimated_cents?: number | null;
   fx_estimated?: boolean;
+  status?: "paid" | "pending";
 };
 
 export type AccountBalance = { account_id: string; balance_cents: number };

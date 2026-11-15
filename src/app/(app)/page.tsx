@@ -4,7 +4,7 @@ import { MonthNav } from "@/components/month-nav";
 import { Card, Empty, PageHeader, btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { ArrowDownLeft, ArrowUpRight } from "@phosphor-icons/react/ssr";
-import { currentMonth, formatDateBR, isValidMonth, monthRange, todayISO } from "@/lib/dates";
+import { currentMonth, formatDateBR, isValidMonth, monthLabel, monthRange, todayISO } from "@/lib/dates";
 import { loadPayables } from "@/lib/payables";
 import { formatBRL } from "@/lib/money";
 import { summarize } from "@/lib/summary";
@@ -17,10 +17,10 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
   const { start, end } = monthRange(month);
   const { supabase } = await requireUser();
 
-  const [{ data: txs }, { data: cats }, { data: accounts }, { data: balances }, payables] = await Promise.all([
+  const [{ data: txs }, { data: cats }, { data: accounts }, { data: balances }, payables, { data: pendingTxs }] = await Promise.all([
     supabase
       .from("transactions")
-      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id")
+      .select("id,kind,amount_cents,occurred_on,description,category_id,account_id,card_id,transfer_account_id,status")
       .gte("occurred_on", start)
       .lt("occurred_on", end)
       .overrideTypes<Transaction[]>(),
@@ -33,6 +33,14 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
       .overrideTypes<Account[]>(),
     supabase.from("account_balances").select("account_id,balance_cents").overrideTypes<AccountBalance[]>(),
     loadPayables(supabase, todayISO(), 14),
+    // Previstos até o fim do mês visto (inclui atrasados de meses anteriores).
+    supabase
+      .from("transactions")
+      .select("kind,amount_cents")
+      .eq("status", "pending")
+      .in("kind", ["income", "expense"])
+      .lt("occurred_on", end)
+      .overrideTypes<{ kind: "income" | "expense"; amount_cents: number }[]>(),
   ]);
 
   // Atrasadas + o que vence nos próximos 7 dias (e ainda não foi pago).
@@ -42,6 +50,11 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
   const overdueCount = attention.filter((r) => r.status === "overdue").length;
 
   const s = summarize(txs ?? []);
+  // Saldo previsto = saldo de hoje + previstos a receber - previstos a pagar, até o fim do mês.
+  const pendingNet = (pendingTxs ?? []).reduce(
+    (sum, t) => sum + (t.kind === "income" ? t.amount_cents : -t.amount_cents),
+    0,
+  );
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
   const balanceById = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
   const totalBalance = (accounts ?? []).reduce(
@@ -65,6 +78,12 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
         ) : (
           <p className="mt-2 text-sm text-hero-muted">
             Somando {(accounts ?? []).length} {(accounts ?? []).length === 1 ? "conta" : "contas"}
+          </p>
+        )}
+        {(pendingTxs ?? []).length > 0 && (
+          <p className="text-sm text-hero-muted">
+            Previsto até o fim de {monthLabel(month)}: <span className="font-semibold text-hero-ink tabular-nums">{formatBRL(totalBalance + pendingNet)}</span>
+            {" "}({(pendingNet >= 0 ? "+" : "−") + formatBRL(Math.abs(pendingNet))} em lançamentos previstos)
           </p>
         )}
       </section>
