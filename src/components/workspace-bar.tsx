@@ -2,13 +2,22 @@
 
 import { usePathname } from "next/navigation";
 import { switchWorkspace } from "@/app/(app)/espacos/actions";
+import { toggleHideValues } from "@/app/prefs-actions";
 import { KIND_LABELS, ROLE_LABELS, type Workspace } from "@/lib/workspace";
 
 /**
  * Seletor do espaço ativo. Estrutura simples de propósito (details + formulários);
  * o visual definitivo fica com o design. Cada botão troca o espaço e volta à mesma tela.
  */
-export function WorkspaceBar({ workspaces, activeId }: { workspaces: Workspace[]; activeId: string | undefined }) {
+export function WorkspaceBar({
+  workspaces,
+  activeId,
+  hideValues,
+}: {
+  workspaces: Workspace[];
+  activeId: string | undefined;
+  hideValues: boolean;
+}) {
   const pathname = usePathname();
   const active = workspaces.find((w) => w.id === activeId);
   if (!active) return null;
@@ -44,6 +53,14 @@ export function WorkspaceBar({ workspaces, activeId }: { workspaces: Workspace[]
           </li>
         </ul>
       </details>
+      <form action={toggleHideValues} className="ml-auto">
+        <button
+          aria-pressed={hideValues}
+          className="min-h-10 rounded-lg border border-line-strong bg-raised px-3 text-ink-muted hover:bg-sunken"
+        >
+          {hideValues ? "Mostrar valores" : "Ocultar valores"}
+        </button>
+      </form>
       {active.role === "viewer" && (
         <span role="status" className="rounded-lg bg-sunken px-3 py-2 text-xs text-ink-muted">
           Somente leitura: você pode ver, mas não alterar este espaço.

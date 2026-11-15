@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -28,9 +29,14 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const hideValues = (await cookies()).get("hide")?.value === "1";
   return (
-    <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      data-hide-values={hideValues ? "true" : undefined}
+      className={`${geist.variable} ${geistMono.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

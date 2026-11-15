@@ -55,6 +55,12 @@
   }
 }
 
+/* Ocultar valores: o app marca todos os valores monetários com .tabular-nums. */
+html[data-hide-values="true"] .tabular-nums {
+  filter: blur(7px);
+  user-select: none;
+}
+
 @theme inline {
   --color-ground: var(--ground);
   --color-raised: var(--raised);

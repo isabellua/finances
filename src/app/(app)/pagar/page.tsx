@@ -11,6 +11,7 @@ import {
 import { addDays, currentMonth, formatDateBR, monthLabel, todayISO } from "@/lib/dates";
 import { centsToInput, formatBRL } from "@/lib/money";
 import { loadPayables, type PayableRow } from "@/lib/payables";
+import { detectRecurring, type DetectTx } from "@/lib/recurring-detect";
 import type { Account, Category, CreditCard } from "@/lib/types";
 import { createCommitment, deleteCommitment, settleOccurrence, undoSettlement, updateCommitment } from "./actions";
 import { CommitmentForm } from "./commitment-form";
@@ -41,7 +42,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
   const { supabase } = await requireUser();
   const today = todayISO();
 
-  const [payables, { data: accounts }, { data: cards }, { data: cats }] = await Promise.all([
+  const [payables, { data: accounts }, { data: cards }, { data: cats }, { data: recentTxs }] = await Promise.all([
     loadPayables(supabase, today, 90),
     supabase
       .from("accounts")
@@ -54,9 +55,17 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
     supabase.from("categories").select("id,name").order("name").overrideTypes<Category[]>(),
+    supabase
+      .from("transactions")
+      .select("description,amount_cents,occurred_on,kind,account_id,card_id,category_id")
+      .eq("kind", "expense")
+      .gte("occurred_on", addDays(today, -200))
+      .limit(3000)
+      .overrideTypes<DetectTx[]>(),
   ]);
 
   const { commitments, settlements, rows } = payables;
+  const suggestions = detectRecurring(recentTxs ?? [], commitments.map((c) => c.description), today).slice(0, 6);
   const activeAccounts = (accounts ?? []).filter((a) => !a.archived);
   const activeCards = (cards ?? []).filter((c) => !c.archived);
   const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
@@ -166,6 +175,42 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
           </Card>
         )}
       </section>
+
+      {suggestions.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-semibold">Parecem assinaturas</h2>
+          <p className="text-sm text-ink-muted">
+            Cobranças que se repetem todo mês nos seus lançamentos e ainda não estão cadastradas. Confira antes de cadastrar.
+          </p>
+          <Card className="!p-0">
+            <ul className="divide-y divide-line text-sm">
+              {suggestions.map((s) => (
+                <li key={`${s.target}|${s.key}`} className="flex flex-wrap items-center gap-3 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{s.description}</p>
+                    <p className="text-xs text-ink-muted">
+                      {s.occurrences} meses seguidos · todo dia {s.day} · próxima por volta de {formatDateBR(s.nextDate)}
+                    </p>
+                  </div>
+                  <span className="font-semibold tabular-nums">{formatBRL(s.amountCents)}</span>
+                  <form action={createCommitment}>
+                    <input type="hidden" name="kind" value="subscription" />
+                    <input type="hidden" name="description" value={s.description} />
+                    <input type="hidden" name="amount" value={centsToInput(s.amountCents)} />
+                    <input type="hidden" name="start_on" value={s.nextDate} />
+                    <input type="hidden" name="frequency" value="monthly" />
+                    <input type="hidden" name="payment" value={s.target} />
+                    <input type="hidden" name="category_id" value={s.categoryId ?? ""} />
+                    <input type="hidden" name="total" value="" />
+                    <input type="hidden" name="paid_count" value="0" />
+                    <button className={btnGhost}>Cadastrar</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
 
       <details open={commitments.length === 0} className="group">
         <summary className={`${btnPrimary} w-fit cursor-pointer list-none`}>+ Cadastrar</summary>

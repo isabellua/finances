@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Flash, str } from "@/components/flash";
 import { Card, Empty, Field, PageHeader, btnGhost, btnPrimary, inputCls } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -144,6 +145,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                         </ConfirmButton>
                       </form>
                     </div>
+                    <Link href={`/faturas?cartao=${c.id}`} className="w-fit text-xs font-medium text-accent-text underline">
+                      Ver fatura
+                    </Link>
                     <details>
                       <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
                         Editar cartão

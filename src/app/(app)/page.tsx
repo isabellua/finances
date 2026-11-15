@@ -24,7 +24,7 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
       .gte("occurred_on", start)
       .lt("occurred_on", end)
       .overrideTypes<Transaction[]>(),
-    supabase.from("categories").select("id,name").overrideTypes<Category[]>(),
+    supabase.from("categories").select("id,name,color").overrideTypes<Category[]>(),
     supabase
       .from("accounts")
       .select("id,name,institution,type,opening_balance_cents,archived")
@@ -56,6 +56,7 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
     0,
   );
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
+  const catColor = new Map((cats ?? []).filter((c) => c.color).map((c) => [c.id, c.color as string]));
   const balanceById = new Map((balances ?? []).map((b) => [b.account_id, b.balance_cents]));
   const totalBalance = (accounts ?? []).reduce(
     (sum, a) => sum + (balanceById.get(a.id) ?? a.opening_balance_cents),
@@ -147,8 +148,11 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
                     <span className="font-medium tabular-nums">{formatBRL(c.totalCents)}</span>
                   </div>
                   <div
-                    className="h-1.5 rounded-full bg-accent-text"
-                    style={{ width: `${Math.max(2, (c.totalCents / max) * 100)}%` }}
+                    className={`h-1.5 rounded-full ${c.categoryId && catColor.get(c.categoryId) ? "" : "bg-accent-text"}`}
+                    style={{
+                      width: `${Math.max(2, (c.totalCents / max) * 100)}%`,
+                      ...(c.categoryId && catColor.get(c.categoryId) ? { background: catColor.get(c.categoryId)! } : {}),
+                    }}
                   />
                 </li>
               ))}
