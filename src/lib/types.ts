@@ -9,6 +9,7 @@ export type Account = {
   id: string;
   name: string;
   institution: string | null;
+  bank_slug?: string | null;
   type: AccountType;
   opening_balance_cents: number;
   archived: boolean;

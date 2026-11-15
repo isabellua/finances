@@ -30,3 +30,11 @@ select tests.allowed($q$update public.categories set color = '#1a8f5a', icon = '
 select tests.blocked($q$update public.categories set color = 'verde' where lower(name) = 'mercado'$q$, 'cor inválida');
 select tests.blocked($q$update public.categories set icon = 'ícone-muito-longo-demais' where lower(name) = 'mercado'$q$, 'ícone longo demais');
 reset role;
+
+-- =================================================================== banco da conta
+select tests.login('dddddddd-0000-0000-0000-000000000004'::uuid);
+select tests.allowed($q$update public.accounts set bank_slug = 'nubank' where name = 'Conta'$q$, 'bank_slug válido');
+select tests.assert((select bank_slug from public.accounts where name = 'Conta') = 'nubank', 'bank_slug gravado');
+select tests.blocked($q$update public.accounts set bank_slug = 'Nubank Roxo!' where name = 'Conta'$q$, 'bank_slug com caracteres inválidos');
+select tests.allowed($q$update public.accounts set bank_slug = null where name = 'Conta'$q$, 'bank_slug pode ficar vazio (contas antigas)');
+reset role;

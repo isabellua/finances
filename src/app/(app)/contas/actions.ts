@@ -3,36 +3,43 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { CASH, OTHER, bankBySlug } from "@/lib/banks";
 import { back } from "@/lib/flash";
 import { parsePercentToBps } from "@/lib/fx";
 import { parseBRLToCents } from "@/lib/money";
-import { ACCOUNT_TYPE_LABEL } from "@/lib/types";
+import { ACCOUNT_TYPE_LABEL, type AccountType } from "@/lib/types";
 
 const PATH = "/contas";
 
 const accountSchema = z.object({
-  institution: z.string().trim().max(80),
+  bank: z.string().regex(/^[a-z0-9-]{2,30}$/, "Escolha o banco."),
+  other_name: z.string().trim().max(60),
   type: z.enum(["checking", "savings", "investment", "cash"]),
 });
 
-export async function createAccount(formData: FormData) {
-  const { supabase } = await requireUser();
-
+/** Banco escolhido na lista -> campos gravados na conta. */
+function resolveBank(formData: FormData) {
   const parsed = accountSchema.safeParse({
-    institution: formData.get("institution") ?? "",
+    bank: formData.get("bank") ?? "",
+    other_name: formData.get("other_name") ?? "",
     type: formData.get("type") ?? "checking",
   });
-  if (!parsed.success) back(PATH, "erro", "Dados da conta inválidos.");
+  if (!parsed.success) back(PATH, "erro", parsed.error.issues[0]?.message ?? "Dados da conta inválidos.");
+  const bank = bankBySlug(parsed.data.bank);
+  if (!bank) back(PATH, "erro", "Banco desconhecido.");
+  let institution = bank.name;
+  if (bank.slug === OTHER.slug) {
+    institution = parsed.data.other_name;
+    if (!institution) back(PATH, "erro", "Informe o nome do banco.");
+  }
+  const type: AccountType =
+    bank.slug === CASH.slug ? "cash" : parsed.data.type === "cash" ? "checking" : parsed.data.type;
+  return { slug: bank.slug, institution, type };
+}
 
-  // Dinheiro não tem banco: usa "Dinheiro" como identidade.
-  const institution =
-    parsed.data.institution || (parsed.data.type === "cash" ? "Dinheiro" : "");
-  if (!institution) back(PATH, "erro", "Informe o banco.");
-
-  const raw = String(formData.get("opening") ?? "").trim();
-  const negative = raw.startsWith("-");
-  const cents = raw === "" ? 0 : parseBRLToCents(negative ? raw.slice(1) : raw);
-  if (cents === null) back(PATH, "erro", "Saldo inicial inválido.");
+export async function createAccount(formData: FormData) {
+  const { supabase } = await requireUser();
+  const { slug, institution, type } = resolveBank(formData);
 
   // O nome é derivado do banco. Se já houver outra conta igual (mesmo banco
   // e tipo), numera: "Itaú", "Itaú 2".
@@ -40,20 +47,17 @@ export async function createAccount(formData: FormData) {
     .from("accounts")
     .select("id", { count: "exact", head: true })
     .eq("institution", institution)
-    .eq("type", parsed.data.type)
+    .eq("type", type)
     .eq("archived", false);
   const name = count && count > 0 ? `${institution} ${count + 1}` : institution;
 
-  const { error } = await supabase.from("accounts").insert({
-    name,
-    institution,
-    type: parsed.data.type,
-    opening_balance_cents: negative ? -cents : cents,
-  });
+  const { error } = await supabase
+    .from("accounts")
+    .insert({ name, institution, type, bank_slug: slug });
   if (error) back(PATH, "erro", "Não foi possível criar a conta.");
 
   revalidatePath(PATH);
-  back(PATH, "ok", `${name} (${ACCOUNT_TYPE_LABEL[parsed.data.type]}) criada.`);
+  back(PATH, "ok", `${name} (${ACCOUNT_TYPE_LABEL[type]}) criada.`);
 }
 
 export async function archiveAccount(formData: FormData) {
@@ -173,27 +177,14 @@ export async function updateAccount(formData: FormData) {
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) back(PATH, "erro", "Conta inválida.");
 
-  const parsed = accountSchema.safeParse({
-    institution: formData.get("institution") ?? "",
-    type: formData.get("type") ?? "checking",
-  });
-  if (!parsed.success) back(PATH, "erro", "Dados da conta inválidos.");
-
-  const institution =
-    parsed.data.institution || (parsed.data.type === "cash" ? "Dinheiro" : "");
-  if (!institution) back(PATH, "erro", "Informe o banco.");
-
-  const raw = String(formData.get("opening") ?? "").trim();
-  const negative = raw.startsWith("-");
-  const cents = raw === "" ? 0 : parseBRLToCents(negative ? raw.slice(1) : raw);
-  if (cents === null) back(PATH, "erro", "Saldo inicial inválido.");
+  const { slug, institution, type } = resolveBank(formData);
 
   // Mesma regra de nome da criação, sem contar a própria conta.
   const { count } = await supabase
     .from("accounts")
     .select("id", { count: "exact", head: true })
     .eq("institution", institution)
-    .eq("type", parsed.data.type)
+    .eq("type", type)
     .eq("archived", false)
     .neq("id", id.data);
   const name = count && count > 0 ? `${institution} ${count + 1}` : institution;
@@ -203,8 +194,8 @@ export async function updateAccount(formData: FormData) {
     .update({
       name,
       institution,
-      type: parsed.data.type,
-      opening_balance_cents: negative ? -cents : cents,
+      type,
+      bank_slug: slug,
     })
     .eq("id", id.data)
     .select("id");
