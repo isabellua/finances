@@ -61,6 +61,19 @@ html[data-hide-values="true"] .tabular-nums {
   user-select: none;
 }
 
+@media print {
+  /* Impressão do mês: só o conteúdo, sem menus. */
+  header,
+  nav[aria-label="Principal"],
+  [data-testid="workspace-bar"] {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}
+
 @theme inline {
   --color-ground: var(--ground);
   --color-raised: var(--raised);

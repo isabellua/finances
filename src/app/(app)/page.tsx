@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { str } from "@/components/flash";
 import { MonthNav } from "@/components/month-nav";
+import { PrintButton } from "@/components/print-button";
 import { Card, Empty, PageHeader, btnPrimary } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { ArrowDownLeft, ArrowUpRight } from "@phosphor-icons/react/ssr";
@@ -15,7 +16,7 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
   const mesParam = str(sp.mes);
   const month = isValidMonth(mesParam) ? mesParam : currentMonth();
   const { start, end } = monthRange(month);
-  const { supabase } = await requireUser();
+  const { supabase, workspace } = await requireUser();
 
   const [{ data: txs }, { data: cats }, { data: accounts }, { data: balances }, payables, { data: pendingTxs }] = await Promise.all([
     supabase
@@ -68,7 +69,12 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Resumo"
-        action={<MonthNav base="/" month={month} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthNav base="/" month={month} />
+            <PrintButton />
+          </div>
+        }
       />
 
       <section className="flex flex-col gap-2 rounded-xl bg-hero p-6 text-hero-ink">
@@ -88,6 +94,42 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
           </p>
         )}
       </section>
+
+      {(workspace?.monthlyCapCents || workspace?.monthlyIncomeGoalCents) && (
+        <section className="grid gap-2 sm:grid-cols-2" aria-label="Metas do mês">
+          {workspace?.monthlyIncomeGoalCents ? (
+            <Card className="flex flex-col gap-2">
+              <p className="text-sm text-ink-muted">Meta de receita do mês</p>
+              <p className="font-semibold tabular-nums">
+                {formatBRL(s.incomeCents)} <span className="font-normal text-ink-muted">de {formatBRL(workspace.monthlyIncomeGoalCents)}</span>
+              </p>
+              <div className="h-2 rounded-full bg-sunken" role="img" aria-label={`${Math.round((s.incomeCents / workspace.monthlyIncomeGoalCents) * 100)}% da meta`}>
+                <div className="h-2 rounded-full bg-pos" style={{ width: `${Math.min(100, (s.incomeCents / workspace.monthlyIncomeGoalCents) * 100)}%` }} />
+              </div>
+              <p className="text-xs text-ink-subtle">{Math.round((s.incomeCents / workspace.monthlyIncomeGoalCents) * 100)}% da meta</p>
+            </Card>
+          ) : null}
+          {workspace?.monthlyCapCents ? (
+            <Card className="flex flex-col gap-2">
+              <p className="text-sm text-ink-muted">Teto de gastos do mês</p>
+              <p className="font-semibold tabular-nums">
+                {formatBRL(s.expenseCents)} <span className="font-normal text-ink-muted">de {formatBRL(workspace.monthlyCapCents)}</span>
+              </p>
+              <div className="h-2 rounded-full bg-sunken" role="img" aria-label={`${Math.round((s.expenseCents / workspace.monthlyCapCents) * 100)}% do teto`}>
+                <div
+                  className={`h-2 rounded-full ${s.expenseCents > workspace.monthlyCapCents ? "bg-neg" : "bg-accent"}`}
+                  style={{ width: `${Math.min(100, (s.expenseCents / workspace.monthlyCapCents) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-ink-subtle">
+                {s.expenseCents > workspace.monthlyCapCents
+                  ? `passou do teto em ${formatBRL(s.expenseCents - workspace.monthlyCapCents)}`
+                  : `restam ${formatBRL(workspace.monthlyCapCents - s.expenseCents)}`}
+              </p>
+            </Card>
+          ) : null}
+        </section>
+      )}
 
       {attention.length > 0 && (
         <section className="flex flex-col gap-2">

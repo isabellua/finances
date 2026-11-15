@@ -7,7 +7,9 @@ App web de controle financeiro da família. Plano completo em [PLANO.md](PLANO.m
 - Fase 2: importação de extrato e fatura (OFX/CSV) com detecção de duplicatas e categorias aprendidas.
 - Fase 3: contas a pagar (assinaturas, contas fixas, parcelas, avulsas), vencimentos e calendário `.ics`.
 - Fase 4: calculadora de compra internacional (PTAX do Banco Central + spread + IOF), com fechamento do ciclo ao importar a fatura.
-- Pendente: lembretes por e-mail/notificação, previsão completa e saúde financeira (Fase 5).
+- Espaços (pessoal, profissional, família, amigos), com membros e convite por link.
+- Pago × previsto, fatura por ciclo, calendário, visão anual, próximos meses (teto e comprometido), saúde financeira, assinaturas detectadas, busca e filtros.
+- Pendente: lembretes por e-mail/notificação e tema claro/escuro manual (o visual é do agente de design).
 
 ## Rodar localmente
 
@@ -38,6 +40,10 @@ Se mudar um, mude o outro: função e banco em continentes diferentes fazem cada
 4. Aplique a migração `supabase/migrations/*.sql` no banco (SQL Editor do Supabase).
 5. Para rodar local com as mesmas variáveis: `npx vercel link` e `npx vercel env pull .env.local`.
 6. Supabase > Authentication > URL Configuration: adicione a URL de produção da Vercel em Site URL e Redirect URLs.
+
+## Testes do banco
+
+`scripts/db-test.sh` sobe um Postgres temporário, aplica as migrações em ordem (com dados "antigos" antes da migração de espaços) e roda `supabase/tests/*.test.sql`. `FINGERPRINT=1` imprime uma impressão digital do esquema para comparar com produção.
 
 ## Comandos
 
