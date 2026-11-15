@@ -52,7 +52,7 @@ export const LOGOS: Readonly<Record<string, { tile: "brand" | "white"; mono?: bo
   sicoob: { tile: "brand" },
   picpay: { tile: "brand", mono: true },
   "mercado-pago": { tile: "brand" },
-  neon: { tile: "brand" },
+  neon: { tile: "white" },
   caixa: { tile: "brand" },
   sicredi: { tile: "white" },
   xp: { tile: "white" },
