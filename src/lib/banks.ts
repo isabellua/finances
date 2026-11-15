@@ -17,7 +17,7 @@ export const BANKS: readonly Bank[] = [
   { slug: "itau", name: "Itaú", color: "#FE6100", ink: W },
   { slug: "bradesco", name: "Bradesco", color: "#CC092F", ink: W },
   { slug: "banco-do-brasil", name: "Banco do Brasil", color: "#FAE128", ink: "#0B3B8C" },
-  { slug: "caixa", name: "Caixa", color: "#005CA9", ink: W },
+  { slug: "caixa", name: "Caixa", color: "#0031F7", ink: W },
   { slug: "santander", name: "Santander", color: "#EC0000", ink: W },
   { slug: "inter", name: "Inter", color: "#FF7A00", ink: W },
   { slug: "btg", name: "BTG Pactual", color: "#0B2A4A", ink: W },
