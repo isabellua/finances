@@ -44,6 +44,7 @@ export function TransactionForm({
   categories,
   today,
   initial,
+  defaultKind,
   submitLabel = "Salvar lançamento",
 }: {
   action: (formData: FormData) => void | Promise<void>;
@@ -52,9 +53,11 @@ export function TransactionForm({
   categories: Opt[];
   today: string;
   initial?: TransactionInitial;
+  /** Tipo selecionado ao abrir (quando não está editando). */
+  defaultKind?: Kind;
   submitLabel?: string;
 }) {
-  const [kind, setKind] = useState<Kind>(initial?.kind ?? "expense");
+  const [kind, setKind] = useState<Kind>(initial?.kind ?? defaultKind ?? "expense");
   const [payAccount, setPayAccount] = useState(
     initial?.kind === "invoice_payment" && initial.source.startsWith("a:")
       ? initial.source.slice(2)

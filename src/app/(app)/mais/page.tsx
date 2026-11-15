@@ -1,33 +1,77 @@
 import Link from "next/link";
-import { Card, PageHeader } from "@/components/ui";
+import { ConfirmButton } from "@/components/confirm-button";
+import { Flash, str } from "@/components/flash";
+import { Card, PageHeader, btnGhost } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
+import { KIND_LABELS, ROLE_LABELS } from "@/lib/workspace";
+import { removeMember } from "../espacos/actions";
 
-const items = [
-  { href: "/faturas", title: "Faturas", text: "Fatura de cada cartão por ciclo de fechamento: total, pago, limite usado e tendência." },
-  { href: "/calendario", title: "Calendário", text: "Dias com lançamentos e vencimentos; veja o que entrou, saiu e o que está previsto." },
-  { href: "/futuro", title: "Próximos meses", text: "Quanto já está comprometido, quanto sobra do teto e quando as parcelas terminam." },
-  { href: "/anual", title: "Visão anual", text: "Receitas e despesas mês a mês e por categoria no ano." },
-  { href: "/saude", title: "Saúde financeira", text: "Indicador de 0 a 100 com poupança, reserva, crédito e comprometimento." },
-  { href: "/espacos", title: "Espaços", text: "Separe finanças pessoais, do trabalho, da família ou de amigos, e convide pessoas." },
-  { href: "/cambio", title: "Compra internacional", text: "Calcule o custo de uma compra em moeda estrangeira no cartão: cotação, spread e IOF." },
-  { href: "/categorias", title: "Categorias", text: "Crie e remova as categorias dos lançamentos." },
-];
+export default async function MaisPage({ searchParams }: PageProps<"/mais">) {
+  const sp = await searchParams;
+  const { user, workspace, workspaces } = await requireUser();
+  const isOwner = workspace?.role === "owner";
 
-export default function MaisPage() {
+  const links = [
+    { href: "/importar", title: "Importar extrato ou fatura", text: "Arquivos OFX ou CSV do banco." },
+    { href: "/categorias", title: "Categorias", text: "Crie, renomeie e escolha cor e ícone." },
+    { href: "/saude", title: "Saúde financeira", text: "Nota de 0 a 100 e de onde ela vem." },
+    ...(isOwner ? [{ href: "/configuracoes", title: "Configurações do espaço", text: "Nome, teto, meta, membros e convites." }] : []),
+  ];
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <PageHeader title="Mais" />
-      <ul className="flex flex-col gap-3">
-        {items.map((i) => (
-          <li key={i.href}>
-            <Link href={i.href}>
-              <Card className="flex flex-col gap-1 hover:bg-sunken">
-                <p className="font-semibold">{i.title}</p>
-                <p className="text-sm text-ink-subtle">{i.text}</p>
+      <Flash erro={str(sp.erro)} ok={str(sp.ok)} />
+
+      <ul className="flex flex-col gap-2">
+        {links.map((l) => (
+          <li key={l.href}>
+            <Link href={l.href}>
+              <Card className="flex flex-col gap-0.5 hover:bg-sunken">
+                <p className="font-medium">{l.title}</p>
+                <p className="text-sm text-ink-muted">{l.text}</p>
               </Card>
             </Link>
           </li>
         ))}
       </ul>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-semibold">Seus espaços</h2>
+        <ul className="flex flex-col gap-2">
+          {workspaces.map((w) => (
+            <Card key={w.id} className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">
+                  {w.name}
+                  {w.id === workspace?.id && <span className="ml-2 rounded-full bg-accent-tint px-2 py-0.5 text-xs font-medium text-accent-text">aberto</span>}
+                </p>
+                <p className="text-xs text-ink-muted">{KIND_LABELS[w.kind]} · {ROLE_LABELS[w.role]}</p>
+              </div>
+              {w.id !== workspace?.id && (
+                <form method="post" action="/espaco/trocar">
+                  <input type="hidden" name="id" value={w.id} />
+                  <input type="hidden" name="next" value="/" />
+                  <button className={btnGhost}>Abrir</button>
+                </form>
+              )}
+              {w.role !== "owner" && (
+                <form action={removeMember}>
+                  <input type="hidden" name="ws" value={w.id} />
+                  <input type="hidden" name="user" value={user.id} />
+                  <input type="hidden" name="next" value="/mais" />
+                  <ConfirmButton message={`Sair do espaço “${w.name}”? Você perde o acesso aos dados dele.`} className="text-xs text-ink-muted underline">
+                    Sair
+                  </ConfirmButton>
+                </form>
+              )}
+            </Card>
+          ))}
+        </ul>
+        <Link href="/espacos/novo" className={`${btnGhost} w-fit`}>+ Novo espaço</Link>
+      </section>
+
+      <p className="text-sm text-ink-muted">Conectado como {user.email}</p>
     </div>
   );
 }

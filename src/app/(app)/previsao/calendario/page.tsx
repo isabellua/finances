@@ -21,7 +21,7 @@ type Tx = {
 
 const WEEK = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
-export default async function CalendarioPage({ searchParams }: PageProps<"/calendario">) {
+export default async function CalendarioPage({ searchParams }: PageProps<"/previsao/calendario">) {
   const sp = await searchParams;
   const mesParam = str(sp.mes);
   const month = isValidMonth(mesParam) ? mesParam : currentMonth();
@@ -73,7 +73,7 @@ export default async function CalendarioPage({ searchParams }: PageProps<"/calen
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Calendário" action={<MonthNav base="/calendario" month={month} />} />
+      <PageHeader title="Calendário" action={<MonthNav base="/previsao/calendario" month={month} />} />
 
       <Card className="!p-2">
         <div role="grid" aria-label="Calendário do mês" className="grid grid-cols-7 gap-1 text-center text-sm">
@@ -89,7 +89,7 @@ export default async function CalendarioPage({ searchParams }: PageProps<"/calen
               <Link
                 key={d.date}
                 role="gridcell"
-                href={`/calendario?mes=${month}&dia=${d.date}`}
+                href={`/previsao/calendario?mes=${month}&dia=${d.date}`}
                 aria-label={`${formatDateBR(d.date)}${hasDone ? ", com lançamentos" : ""}${hasPlan ? ", com previstos" : ""}`}
                 aria-current={d.date === today ? "date" : undefined}
                 aria-selected={isSel}
@@ -152,7 +152,7 @@ export default async function CalendarioPage({ searchParams }: PageProps<"/calen
             </ul>
           </Card>
         )}
-        <p className="text-xs text-ink-subtle"><Link className="underline" href="/pagar">Registrar pagamentos em A pagar</Link></p>
+        <p className="text-xs text-ink-subtle"><Link className="underline" href="/previsao/pagar">Registrar pagamentos em A pagar</Link></p>
       </section>
     </div>
   );

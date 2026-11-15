@@ -27,7 +27,7 @@ const STATE_LABEL: Record<InvoiceState, { text: string; cls: string }> = {
   empty: { text: "Sem compras", cls: "bg-sunken text-ink-muted" },
 };
 
-export default async function FaturasPage({ searchParams }: PageProps<"/faturas">) {
+export default async function FaturasPage({ searchParams }: PageProps<"/previsao/faturas">) {
   const sp = await searchParams;
   const { supabase } = await requireUser();
   const today = todayISO();
@@ -86,7 +86,7 @@ export default async function FaturasPage({ searchParams }: PageProps<"/faturas"
   const catName = new Map((cats ?? []).map((c) => [c.id, c.name]));
   const prev = shiftInvoice(selected, -1, cycle);
   const next = shiftInvoice(selected, 1, cycle);
-  const link = (closing: string, cartao = card.id) => `/faturas?cartao=${cartao}&f=${closing}`;
+  const link = (closing: string, cartao = card.id) => `/previsao/faturas?cartao=${cartao}&f=${closing}`;
 
   // Tendência: 5 faturas anteriores, a escolhida e as 3 seguintes (real onde já houve compras; projetado com compromissos do cartão).
   const trend = [];
@@ -110,7 +110,7 @@ export default async function FaturasPage({ searchParams }: PageProps<"/faturas"
           {list.map((c) => (
             <Link
               key={c.id}
-              href={`/faturas?cartao=${c.id}`}
+              href={`/previsao/faturas?cartao=${c.id}`}
               aria-current={c.id === card.id ? "page" : undefined}
               className="rounded-full border border-line-strong px-3 py-1.5 text-sm aria-[current=page]:bg-accent-tint aria-[current=page]:text-accent-text"
             >

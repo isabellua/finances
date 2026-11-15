@@ -13,7 +13,7 @@ type Flow = { occurred_on: string; kind: "income" | "expense"; amount_cents: num
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
-export default async function AnualPage({ searchParams }: PageProps<"/anual">) {
+export default async function AnualPage({ searchParams }: PageProps<"/previsao/anual">) {
   const sp = await searchParams;
   const thisYear = Number(todayISO().slice(0, 4));
   const y = Number(str(sp.ano));
@@ -61,8 +61,8 @@ export default async function AnualPage({ searchParams }: PageProps<"/anual">) {
         title={`Visão de ${year}`}
         action={
           <div className="flex items-center gap-2 text-sm">
-            <Link href={`/anual?ano=${year - 1}`} className="rounded-lg border border-line-strong px-3 py-2" aria-label="Ano anterior">‹</Link>
-            <Link href={`/anual?ano=${year + 1}`} className="rounded-lg border border-line-strong px-3 py-2" aria-label="Próximo ano">›</Link>
+            <Link href={`/previsao/anual?ano=${year - 1}`} className="rounded-lg border border-line-strong px-3 py-2" aria-label="Ano anterior">‹</Link>
+            <Link href={`/previsao/anual?ano=${year + 1}`} className="rounded-lg border border-line-strong px-3 py-2" aria-label="Próximo ano">›</Link>
             <PrintButton />
           </div>
         }

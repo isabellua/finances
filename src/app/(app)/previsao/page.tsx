@@ -72,13 +72,13 @@ export default async function FuturoPage() {
 
       {cap === null && (
         <Card className="text-sm">
-          Defina um <strong>teto de gastos mensal</strong> em <Link className="underline" href="/espacos">Espaços</Link> para ver quanto do teto já está comprometido e a margem de cada mês.
+          Defina um <strong>teto de gastos mensal</strong> em <Link className="underline" href="/configuracoes">Espaços</Link> para ver quanto do teto já está comprometido e a margem de cada mês.
         </Card>
       )}
 
       {forecast.every((f) => f.committedCents === 0) && !hasHistory ? (
         <Empty>
-          Cadastre assinaturas, contas fixas e parcelas em <Link className="underline" href="/pagar">A pagar</Link> e lance gastos por alguns meses para ver a previsão.
+          Cadastre assinaturas, contas fixas e parcelas em <Link className="underline" href="/previsao/pagar">A pagar</Link> e lance gastos por alguns meses para ver a previsão.
         </Empty>
       ) : (
         <ul className="flex flex-col gap-3">

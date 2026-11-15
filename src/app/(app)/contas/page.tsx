@@ -4,6 +4,7 @@ import { Card, Empty, Field, PageHeader, btnGhost, btnPrimary, inputCls } from "
 import { ConfirmButton } from "@/components/confirm-button";
 import { requireUser } from "@/lib/auth";
 import { BANKS, CARD_BRANDS } from "@/lib/banks";
+import { formatBps } from "@/lib/fx";
 import { centsToInput, formatBRL } from "@/lib/money";
 import {
   ACCOUNT_TYPE_LABEL,
@@ -23,6 +24,32 @@ import {
   updateAccount,
   updateCard,
 } from "./actions";
+
+const RULE_OPTIONS = [
+  ["purchase_date", "Dia da compra"],
+  ["closing_date", "Dia do fechamento da fatura"],
+  ["due_date", "Dia do vencimento da fatura"],
+] as const;
+
+/** Taxas de compra internacional do cartão: preenchidas uma vez e usadas pela calculadora. */
+function FxFields({ c }: { c?: CreditCard }) {
+  return (
+    <fieldset className="grid gap-3 rounded-lg border border-line p-3 sm:col-span-2 sm:grid-cols-3">
+      <legend className="px-1 text-sm font-medium">Compra internacional (opcional)</legend>
+      <Field label="Spread do banco (%)" hint="Taxa de conversão cobrada pelo emissor. Veja no app do banco.">
+        <input name="fx_spread" inputMode="decimal" defaultValue={c?.fx_spread_bps != null ? formatBps(c.fx_spread_bps) : ""} placeholder="Ex.: 4" className={inputCls} />
+      </Field>
+      <Field label="IOF próprio (%)" hint="Deixe em branco para usar o IOF padrão. 0 se o banco absorve.">
+        <input name="fx_iof" inputMode="decimal" defaultValue={c?.fx_iof_bps != null ? formatBps(c.fx_iof_bps) : ""} className={inputCls} />
+      </Field>
+      <Field label="Cotação usada pelo banco" hint="Confirme com o banco.">
+        <select name="fx_rule" defaultValue={c?.fx_rate_rule ?? "purchase_date"} className={inputCls}>
+          {RULE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </Field>
+    </fieldset>
+  );
+}
 
 export default async function ContasPage({ searchParams }: PageProps<"/contas">) {
   const sp = await searchParams;
@@ -145,9 +172,14 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                         </ConfirmButton>
                       </form>
                     </div>
-                    <Link href={`/faturas?cartao=${c.id}`} className="w-fit text-xs font-medium text-accent-text underline">
-                      Ver fatura
-                    </Link>
+                    <div className="flex flex-wrap gap-4">
+                      <Link href={`/previsao/faturas?cartao=${c.id}`} className="w-fit text-xs font-medium text-accent-text underline">
+                        Ver fatura
+                      </Link>
+                      <Link href={`/cambio?cartao=${c.id}`} className="w-fit text-xs font-medium text-accent-text underline">
+                        Converter compra internacional
+                      </Link>
+                    </div>
                     <details>
                       <summary className="w-fit cursor-pointer list-none text-xs font-medium text-accent-text underline">
                         Editar cartão
@@ -180,6 +212,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                         <Field label="Limite (R$)" hint="Opcional" className="sm:col-span-2">
                           <input name="limit" defaultValue={c.credit_limit_cents != null ? centsToInput(c.credit_limit_cents) : ""} inputMode="decimal" className={inputCls} />
                         </Field>
+                        <FxFields c={c} />
                         <button className={`${btnPrimary} sm:col-span-2`}>Salvar alterações</button>
                       </form>
                     </details>
@@ -213,6 +246,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                 <Field label="Limite (R$)" hint="Opcional" className="sm:col-span-2">
                   <input name="limit" inputMode="decimal" className={inputCls} />
                 </Field>
+                <FxFields />
                 <button className={`${btnPrimary} sm:col-span-2`}>Salvar cartão</button>
               </form>
             </details>

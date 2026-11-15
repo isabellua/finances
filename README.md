@@ -41,6 +41,14 @@ Se mudar um, mude o outro: função e banco em continentes diferentes fazem cada
 5. Para rodar local com as mesmas variáveis: `npx vercel link` e `npx vercel env pull .env.local`.
 6. Supabase > Authentication > URL Configuration: adicione a URL de produção da Vercel em Site URL e Redirect URLs.
 
+## Navegação
+
+Quatro áreas (Início, Lançamentos, **Previsão**, Contas) e um botão "+" (celular: no centro da barra; web: "+ Novo" no topo) que abre despesa, entrada, transferência, pagar fatura, conta a pagar e compra internacional.
+- **Previsão** reúne próximos meses, A pagar, Faturas, Calendário e Anual (`/previsao/*`).
+- **Mais** (menu no topo): Importar, Categorias, Saúde, Configurações do espaço (só dono) e Sair.
+- A troca de espaço fica no topo (`/espaco/trocar`); a criação de espaço em `/espacos/novo`.
+- Compra internacional usa as taxas do próprio cartão (spread, IOF, regra de cotação), editadas em Contas.
+
 ## Testes do banco
 
 `scripts/db-test.sh` sobe um Postgres temporário, aplica as migrações em ordem (com dados "antigos" antes da migração de espaços) e roda `supabase/tests/*.test.sql`. `FINGERPRINT=1` imprime uma impressão digital do esquema para comparar com produção.

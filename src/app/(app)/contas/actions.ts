@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { back } from "@/lib/flash";
+import { parsePercentToBps } from "@/lib/fx";
 import { parseBRLToCents } from "@/lib/money";
 import { ACCOUNT_TYPE_LABEL } from "@/lib/types";
 
@@ -86,6 +87,22 @@ const day = (label: string) =>
     .min(1, `${label} inválido (1 a 31).`)
     .max(31, `${label} inválido (1 a 31).`);
 
+/** Taxas para compra internacional neste cartão. Em branco = não configurado (spread) / padrão do app (IOF). */
+function fxFields(formData: FormData) {
+  const rawSpread = String(formData.get("fx_spread") ?? "").trim();
+  const rawIof = String(formData.get("fx_iof") ?? "").trim();
+  const spread = rawSpread === "" ? null : parsePercentToBps(rawSpread);
+  const iof = rawIof === "" ? null : parsePercentToBps(rawIof);
+  if (rawSpread !== "" && (spread === null || spread > 3000)) back(PATH, "erro", "Spread inválido (0 a 30%).");
+  if (rawIof !== "" && (iof === null || iof > 1000)) back(PATH, "erro", "IOF inválido (0 a 10%).");
+  const rule = z.enum(["purchase_date", "closing_date", "due_date"]).safeParse(formData.get("fx_rule") ?? "purchase_date");
+  return {
+    fx_spread_bps: spread,
+    fx_iof_bps: iof,
+    fx_rate_rule: rule.success ? rule.data : ("purchase_date" as const),
+  };
+}
+
 const cardSchema = z.object({
   account_id: z.uuid("Conta inválida."),
   brand: z.string().trim().min(1, "Escolha a bandeira.").max(40),
@@ -127,6 +144,7 @@ export async function createCard(formData: FormData) {
     credit_limit_cents: limit,
     closing_day: parsed.data.closing_day,
     due_day: parsed.data.due_day,
+    ...fxFields(formData),
   });
   if (error) back(PATH, "erro", "Não foi possível criar o cartão.");
 
@@ -244,6 +262,7 @@ export async function updateCard(formData: FormData) {
       credit_limit_cents: limit,
       closing_day: parsed.data.closing_day,
       due_day: parsed.data.due_day,
+      ...fxFields(formData),
     })
     .eq("id", id.data)
     .select("id");

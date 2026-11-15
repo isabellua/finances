@@ -137,7 +137,7 @@ export default async function ResumoPage({ searchParams }: PageProps<"/">) {
             <h2 className="text-lg leading-6 font-semibold tracking-[-0.2px]">
               Vencimentos{overdueCount > 0 && <span className="ml-2 text-sm font-medium text-neg">{overdueCount} atrasada(s)</span>}
             </h2>
-            <Link href="/pagar" className="text-sm underline">Ver tudo</Link>
+            <Link href="/previsao/pagar" className="text-sm underline">Ver tudo</Link>
           </div>
           <Card className="!p-0">
             <ul className="divide-y divide-line text-sm">

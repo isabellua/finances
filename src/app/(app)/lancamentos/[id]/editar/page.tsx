@@ -7,7 +7,9 @@ import { requireUser } from "@/lib/auth";
 import { todayISO } from "@/lib/dates";
 import { centsToInput } from "@/lib/money";
 import type { Account, Category, CreditCard, Transaction } from "@/lib/types";
-import { updateTransaction } from "../../actions";
+import { ConfirmButton } from "@/components/confirm-button";
+import { btnGhost } from "@/components/ui";
+import { deleteTransaction, markPaid, updateTransaction } from "../../actions";
 import { TransactionForm, type TransactionInitial } from "../../transaction-form";
 
 export default async function EditarLancamentoPage({
@@ -86,6 +88,23 @@ export default async function EditarLancamentoPage({
         initial={initial}
         submitLabel="Salvar alterações"
       />
+
+      <div className="flex flex-wrap items-center gap-3">
+        {tx.status === "pending" && (
+          <form action={markPaid}>
+            <input type="hidden" name="id" value={tx.id} />
+            <input type="hidden" name="mes" value={tx.occurred_on.slice(0, 7)} />
+            <button className={btnGhost}>Marcar como pago</button>
+          </form>
+        )}
+        <form action={deleteTransaction} className="ml-auto">
+          <input type="hidden" name="id" value={tx.id} />
+          <input type="hidden" name="mes" value={tx.occurred_on.slice(0, 7)} />
+          <ConfirmButton message="Excluir este lançamento? Não tem volta." className={`${btnGhost} text-neg`}>
+            Excluir lançamento
+          </ConfirmButton>
+        </form>
+      </div>
     </div>
   );
 }

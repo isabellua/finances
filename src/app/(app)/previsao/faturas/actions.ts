@@ -11,8 +11,8 @@ export async function payInvoice(formData: FormData) {
   const { supabase } = await requireUser();
   const card = z.uuid().safeParse(formData.get("card"));
   const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(formData.get("date"));
-  const back_ = `/faturas?cartao=${card.success ? card.data : ""}`;
-  if (!card.success || !date.success) back("/faturas", "erro", "Dados inválidos.");
+  const back_ = `/previsao/faturas?cartao=${card.success ? card.data : ""}`;
+  if (!card.success || !date.success) back("/previsao/faturas", "erro", "Dados inválidos.");
   const amount = parseBRLToCents(String(formData.get("amount") ?? ""));
   if (amount === null || amount <= 0) back(back_, "erro", "Valor inválido.");
 
@@ -21,7 +21,7 @@ export async function payInvoice(formData: FormData) {
     .select("name,account_id")
     .eq("id", card.data)
     .maybeSingle();
-  if (!c) back("/faturas", "erro", "Cartão não encontrado.");
+  if (!c) back("/previsao/faturas", "erro", "Cartão não encontrado.");
 
   const { error } = await supabase.from("transactions").insert({
     kind: "invoice_payment",

@@ -7,7 +7,7 @@ import { occurrenceDate } from "@/lib/commitments";
 import { back } from "@/lib/flash";
 import { parseBRLToCents } from "@/lib/money";
 
-const PATH = "/pagar";
+const PATH = "/previsao/pagar";
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.");
 const pay = z.string().regex(/^[ac]:[0-9a-f-]{36}$/i, "Escolha como é pago.");
 

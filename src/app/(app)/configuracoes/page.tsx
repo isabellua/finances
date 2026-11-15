@@ -3,29 +3,25 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { Flash, str } from "@/components/flash";
 import { Card, Empty, Field, PageHeader, btnGhost, btnPrimary, inputCls } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { back } from "@/lib/flash";
 import { formatDateBR } from "@/lib/dates";
 import { centsToInput } from "@/lib/money";
 import { KIND_LABELS, ROLE_LABELS, type WorkspaceRole } from "@/lib/workspace";
-import {
-  createInvite,
-  createWorkspace,
-  deleteWorkspace,
-  removeMember,
-  revokeInvite,
-  switchWorkspace,
-  updateWorkspace,
-} from "./actions";
+import { removeMember } from "../espacos/actions";
+import { createInvite, deleteWorkspace, revokeInvite, updateWorkspace } from "./actions";
 
 type Member = { user_id: string; role: WorkspaceRole; email: string | null; created_at: string };
 type Invite = { id: string; token: string; role: "editor" | "viewer"; note: string | null; expires_at: string };
 
-export default async function EspacosPage({ searchParams }: PageProps<"/espacos">) {
+export default async function ConfiguracoesPage({ searchParams }: PageProps<"/configuracoes">) {
   const sp = await searchParams;
   const { supabase, user, workspace, workspaces } = await requireUser();
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
   const proto = h.get("x-forwarded-proto") ?? "https";
   const isOwner = workspace?.role === "owner";
+  // Configurações são só do dono do espaço aberto. Quem é editor ou leitor volta ao início.
+  if (!workspace || !isOwner) back("/", "erro", "Só o dono do espaço acessa as configurações.");
 
   const [{ data: members }, { data: invites }] = workspace
     ? await Promise.all([
@@ -50,57 +46,10 @@ export default async function EspacosPage({ searchParams }: PageProps<"/espacos"
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Espaços"
-        subtitle="Cada espaço tem suas próprias contas, cartões, categorias e lançamentos. Use um para o pessoal, outro para o trabalho, família, amigos…"
+        title="Configurações do espaço"
+        subtitle="Só você, como dono, vê esta página. Aqui você ajusta o espaço, quem participa e os convites."
       />
       <Flash erro={str(sp.erro)} ok={str(sp.ok)} />
-
-      <section className="flex flex-col gap-2">
-        <h2 className="font-semibold">Seus espaços</h2>
-        <ul className="flex flex-col gap-2">
-          {workspaces.map((w) => (
-            <Card key={w.id} className="flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {w.name}
-                  {w.id === workspace?.id && (
-                    <span className="ml-2 rounded-full bg-accent-tint px-2 py-0.5 text-xs font-medium text-accent-text">aberto</span>
-                  )}
-                </p>
-                <p className="text-xs text-ink-muted">
-                  {KIND_LABELS[w.kind]} · {ROLE_LABELS[w.role]}
-                </p>
-              </div>
-              {w.id !== workspace?.id && (
-                <form action={switchWorkspace}>
-                  <input type="hidden" name="id" value={w.id} />
-                  <input type="hidden" name="next" value="/" />
-                  <button className={btnGhost}>Abrir</button>
-                </form>
-              )}
-            </Card>
-          ))}
-        </ul>
-
-        <details>
-          <summary className={`${btnGhost} w-fit cursor-pointer list-none`}>+ Novo espaço</summary>
-          <Card className="mt-3">
-            <form action={createWorkspace} className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nome">
-                <input name="name" required maxLength={60} placeholder="Ex.: Empresa, Casa, Viagem" className={inputCls} />
-              </Field>
-              <Field label="Tipo">
-                <select name="kind" defaultValue="other" className={inputCls}>
-                  {Object.entries(KIND_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
-                </select>
-              </Field>
-              <button className={`${btnPrimary} sm:col-span-2`}>Criar espaço</button>
-            </form>
-          </Card>
-        </details>
-      </section>
 
       {workspace && (
         <>
@@ -153,6 +102,7 @@ export default async function EspacosPage({ searchParams }: PageProps<"/espacos"
                       <form action={removeMember}>
                         <input type="hidden" name="ws" value={workspace.id} />
                         <input type="hidden" name="user" value={m.user_id} />
+                        <input type="hidden" name="next" value="/configuracoes" />
                         <ConfirmButton
                           message={m.user_id === user.id ? "Sair deste espaço? Você perde o acesso aos dados dele." : `Remover ${m.email ?? "este membro"} do espaço?`}
                           className="text-xs text-ink-muted underline"

@@ -14,6 +14,7 @@ import {
 } from "@/lib/fx";
 import { back } from "@/lib/flash";
 import { parseBRLToCents } from "@/lib/money";
+import { effectiveIofBps } from "@/lib/tax";
 import { pickQuote, ptaxResponse, toBcbDate, type PtaxQuote } from "@/lib/ptax";
 
 const PATH = "/cambio";
@@ -83,10 +84,16 @@ export async function createFxTransaction(formData: FormData) {
   if (amountMinor === null) back(PATH, "erro", "Valor na moeda estrangeira inválido.");
   const rateMicro = parseRateToMicro(String(formData.get("rate") ?? ""));
   if (rateMicro === null) back(PATH, "erro", "Cotação inválida.");
-  const spreadBps = parsePercentToBps(String(formData.get("spread") ?? ""));
-  if (spreadBps === null || spreadBps > 3000) back(PATH, "erro", "Spread inválido (0 a 30%).");
-  const iofBps = parsePercentToBps(String(formData.get("iof") ?? ""));
-  if (iofBps === null || iofBps > 1000) back(PATH, "erro", "IOF inválido (0 a 10%).");
+  // As taxas vêm do cartão (banco de dados), nunca do formulário.
+  const { data: card } = await supabase
+    .from("credit_cards")
+    .select("fx_spread_bps,fx_iof_bps")
+    .eq("id", d.card_id)
+    .maybeSingle();
+  if (!card) back(PATH, "erro", "Cartão não encontrado.");
+  if (card.fx_spread_bps === null) back(`${PATH}?cartao=${d.card_id}`, "erro", "Informe o spread deste cartão antes de calcular.");
+  const spreadBps = card.fx_spread_bps;
+  const iofBps = effectiveIofBps(card.fx_iof_bps, d.date);
 
   const r = convertFx({ amountMinor, exp, rateMicro, spreadBps, iofBps });
   if (r.totalCents <= 0) back(PATH, "erro", "O valor convertido deu zero. Confira valor e cotação.");
@@ -109,7 +116,7 @@ export async function createFxTransaction(formData: FormData) {
   if (error) back(PATH, "erro", "Não foi possível lançar a compra.");
 
   refresh();
-  back(PATH, "ok", "Compra lançada como estimativa. Quando a fatura chegar, confirme o valor real (aqui ou importando a fatura).");
+  back(`${PATH}?cartao=${d.card_id}`, "ok", "Compra lançada como estimativa. Quando a fatura chegar, confirme o valor real (aqui ou importando a fatura).");
 }
 
 export async function saveCardFx(formData: FormData) {
@@ -137,35 +144,7 @@ export async function saveCardFx(formData: FormData) {
   if (error || !data?.length) back(PATH, "erro", "Não foi possível salvar o cartão.");
 
   refresh();
-  back(PATH, "ok", "Parâmetros do cartão salvos.");
-}
-
-export async function saveIofParam(formData: FormData) {
-  const { supabase } = await requireUser();
-  const rate = parsePercentToBps(String(formData.get("rate") ?? ""));
-  if (rate === null || rate > 2000) back(PATH, "erro", "Alíquota inválida.");
-  const from = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(formData.get("valid_from"));
-  if (!from.success) back(PATH, "erro", "Data de vigência inválida.");
-  const note = String(formData.get("note") ?? "").trim().slice(0, 200);
-
-  const { error } = await supabase.from("tax_params").upsert(
-    { key: "iof_card_international", rate_bps: rate, valid_from: from.data, note: note || null },
-    { onConflict: "workspace_id,key,valid_from" },
-  );
-  if (error) back(PATH, "erro", "Não foi possível salvar a alíquota.");
-
-  refresh();
-  back(PATH, "ok", "Alíquota salva.");
-}
-
-export async function deleteIofParam(formData: FormData) {
-  const { supabase } = await requireUser();
-  const id = z.uuid().safeParse(formData.get("id"));
-  if (!id.success) back(PATH, "erro", "Alíquota inválida.");
-  const { error } = await supabase.from("tax_params").delete().eq("id", id.data);
-  if (error) back(PATH, "erro", "Não foi possível excluir.");
-  refresh();
-  back(PATH, "ok", "Alíquota removida.");
+  back(`${PATH}?cartao=${id.data}`, "ok", "Taxas do cartão salvas.");
 }
 
 /** Confirma o valor realmente cobrado. A estimativa fica guardada para a calibração. */
@@ -203,6 +182,6 @@ export async function applyImpliedSpread(formData: FormData) {
   if (error || !data?.length) back(PATH, "erro", "Não foi possível atualizar o spread.");
 
   refresh();
-  back(PATH, "ok", "Spread do cartão atualizado.");
+  back(`${PATH}?cartao=${id.data}`, "ok", "Spread do cartão atualizado.");
 }
 

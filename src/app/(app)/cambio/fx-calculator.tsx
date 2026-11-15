@@ -12,10 +12,10 @@ import {
   formatRateMicro,
   nextDayOfMonthOnOrAfter,
   parseAmountToMinor,
-  parsePercentToBps,
   parseRateToMicro,
 } from "@/lib/fx";
 import { formatBRL } from "@/lib/money";
+import { effectiveIofBps } from "@/lib/tax";
 import { getPtax } from "./actions";
 
 export type FxCard = {
@@ -24,8 +24,9 @@ export type FxCard = {
   closingDay: number;
   dueDay: number;
   rule: "purchase_date" | "closing_date" | "due_date";
-  spreadBps: number | null;
-  iofBps: number | null; // próprio do cartão
+  /** Já garantido pela página: sem spread configurado a calculadora nem aparece. */
+  spreadBps: number;
+  iofBps: number | null;
 };
 
 const RULE_TEXT: Record<FxCard["rule"], string> = {
@@ -43,46 +44,35 @@ function Submit({ disabled }: { disabled: boolean }) {
   );
 }
 
+/**
+ * Só pede moeda, valor e data. Spread, IOF e regra de cotação são do cartão (somente leitura aqui;
+ * o servidor lê do cartão ao lançar, então o navegador não define taxa nenhuma).
+ */
 export function FxCalculator({
   action,
-  cards,
+  card,
   categories,
-  generalIofBps,
 }: {
   action: (formData: FormData) => void | Promise<void>;
-  cards: FxCard[];
+  card: FxCard;
   categories: { id: string; label: string }[];
-  /** Alíquota geral vigente (cadastrada), ou null. */
-  generalIofBps: number | null;
 }) {
-  const first = cards[0];
-  const [cardId, setCardId] = useState(first?.id ?? "");
-  const card = cards.find((c) => c.id === cardId) ?? first;
-
   const [currency, setCurrency] = useState("USD");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
   const [rate, setRate] = useState("");
   const [rateManual, setRateManual] = useState(false);
   const [rateInfo, setRateInfo] = useState<string | null>(null);
-  const [spread, setSpread] = useState(card?.spreadBps != null ? formatBps(card.spreadBps) : "");
-  const [iof, setIof] = useState(
-    card?.iofBps != null ? formatBps(card.iofBps) : generalIofBps != null ? formatBps(generalIofBps) : "3,5",
-  );
   const [fetchedKey, setFetchedKey] = useState<string | null>(null);
   const reqId = useRef(0);
 
-  const iofIsDefault = card?.iofBps == null && generalIofBps == null;
-
-  // Data usada para a cotação, conforme a regra do cartão.
-  const rule = card?.rule ?? "purchase_date";
+  // Data da cotação, conforme a regra do cartão.
   let quoteTarget = date;
-  if (card && rule !== "purchase_date") {
+  if (card.rule !== "purchase_date") {
     const closing = nextDayOfMonthOnOrAfter(date, card.closingDay);
-    quoteTarget = rule === "closing_date" ? closing : nextDayOfMonthOnOrAfter(addDays(closing, 1), card.dueDay);
+    quoteTarget = card.rule === "closing_date" ? closing : nextDayOfMonthOnOrAfter(addDays(closing, 1), card.dueDay);
   }
   const futureTarget = quoteTarget > todayISO();
-
   const quoteKey = `${currency}|${quoteTarget}`;
   const loading = !rateManual && fetchedKey !== quoteKey;
 
@@ -94,9 +84,8 @@ export function FxCalculator({
       setFetchedKey(quoteKey);
       if (res.ok) {
         setRate(formatRateMicro(res.quote.sellMicro));
-        const when = formatDateBR(res.quote.quoteDate);
         setRateInfo(
-          `PTAX venda de ${when} (${res.quote.partial ? "boletim intermediário, dia ainda sem fechamento" : "fechamento"})` +
+          `PTAX venda de ${formatDateBR(res.quote.quoteDate)} (${res.quote.partial ? "boletim intermediário, dia ainda sem fechamento" : "fechamento"})` +
             (res.quote.quoteDate !== quoteTarget && !futureTarget ? `, último dia útil antes de ${formatDateBR(quoteTarget)}` : ""),
         );
       } else {
@@ -105,56 +94,19 @@ export function FxCalculator({
     });
   }, [currency, quoteTarget, quoteKey, rateManual, futureTarget]);
 
-  function onCard(id: string) {
-    setCardId(id);
-    const c = cards.find((x) => x.id === id);
-    if (!c) return;
-    setSpread(c.spreadBps != null ? formatBps(c.spreadBps) : "");
-    setIof(c.iofBps != null ? formatBps(c.iofBps) : generalIofBps != null ? formatBps(generalIofBps) : "3,5");
-    setRateManual(false);
-  }
-
   const exp = currencyExp(currency);
   const amountMinor = parseAmountToMinor(amount, exp);
   const rateMicro = parseRateToMicro(rate);
-  const spreadBps = parsePercentToBps(spread);
-  const iofBps = parsePercentToBps(iof);
+  const iofBps = effectiveIofBps(card.iofBps, date);
 
   const result =
-    amountMinor !== null && rateMicro !== null && spreadBps !== null && iofBps !== null
-      ? convertFx({ amountMinor, exp, rateMicro, spreadBps, iofBps })
+    amountMinor !== null && rateMicro !== null
+      ? convertFx({ amountMinor, exp, rateMicro, spreadBps: card.spreadBps, iofBps })
       : null;
-
-  if (cards.length === 0) {
-    return (
-      <p className="text-sm">
-        Cadastre um cartão de crédito em <a className="underline" href="/contas">Contas</a> para usar a calculadora.
-      </p>
-    );
-  }
 
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
-      <Field label="Cartão">
-        <select name="card_id" value={cardId} onChange={(e) => onCard(e.target.value)} className={inputCls}>
-          {cards.map((c) => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Data da compra">
-        <input
-          name="date"
-          type="date"
-          required
-          value={date}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setRateManual(false);
-          }}
-          className={inputCls}
-        />
-      </Field>
+      <input type="hidden" name="card_id" value={card.id} />
 
       <Field label="Moeda">
         <select
@@ -176,6 +128,7 @@ export function FxCalculator({
           name="amount"
           inputMode="decimal"
           required
+          autoFocus
           placeholder={exp === 0 ? "0" : "0,00"}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -183,11 +136,20 @@ export function FxCalculator({
         />
       </Field>
 
-      <Field
-        label="Cotação (R$ por 1 unidade)"
-        hint={loading ? "Buscando no Banco Central…" : (rateInfo ?? undefined)}
-        className="sm:col-span-2"
-      >
+      <Field label="Data da compra">
+        <input
+          name="date"
+          type="date"
+          required
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setRateManual(false);
+          }}
+          className={inputCls}
+        />
+      </Field>
+      <Field label="Cotação (R$ por 1 unidade)" hint={loading ? "Buscando no Banco Central…" : (rateInfo ?? undefined)}>
         <input
           name="rate"
           inputMode="decimal"
@@ -201,45 +163,29 @@ export function FxCalculator({
         />
       </Field>
       {rateManual && (
-        <button
-          type="button"
-          onClick={() => setRateManual(false)}
-          className="-mt-1 w-fit text-xs text-accent-text underline sm:col-span-2"
-        >
+        <button type="button" onClick={() => setRateManual(false)} className="-mt-1 w-fit text-xs text-accent-text underline sm:col-span-2">
           Voltar para a cotação do Banco Central
         </button>
       )}
-      {card && (
-        <p className="text-xs text-ink-subtle sm:col-span-2">
-          Regra configurada para este cartão: {RULE_TEXT[rule]}
-          {quoteTarget !== date ? ` (${formatDateBR(quoteTarget)})` : ""}.{" "}
-          {futureTarget && "Essa data ainda não chegou: a conta usa a cotação mais recente e o valor final vai variar. "}
-          Confirme essa regra com o banco.
-        </p>
-      )}
 
-      <Field label="Spread do emissor (%)" hint={card?.spreadBps == null ? "Não configurado neste cartão. Preencha (veja o contrato ou a fatura)." : undefined}>
-        <input name="spread" inputMode="decimal" required value={spread} onChange={(e) => setSpread(e.target.value)} placeholder="0" className={inputCls} />
-      </Field>
-      <Field
-        label="IOF (%)"
-        hint={iofIsDefault ? "Alíquota geral não cadastrada; usando 3,5% como sugestão (confira na Receita Federal e salve abaixo)." : undefined}
-      >
-        <input name="iof" inputMode="decimal" required value={iof} onChange={(e) => setIof(e.target.value)} className={inputCls} />
-      </Field>
+      <p className="rounded-lg bg-sunken p-3 text-sm text-ink-muted sm:col-span-2">
+        <strong className="text-ink">{card.label}</strong> cobra spread de {formatBps(card.spreadBps)}% e IOF de {formatBps(iofBps)}%
+        {card.iofBps === null ? " (padrão do app)" : ""}, com {RULE_TEXT[card.rule]}
+        {quoteTarget !== date ? ` (${formatDateBR(quoteTarget)})` : ""}.{" "}
+        {futureTarget && "Essa data ainda não chegou: a conta usa a cotação mais recente e o valor final vai variar. "}
+        Para mudar essas taxas, edite o cartão em Contas.
+      </p>
 
       {result && (
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-xl border border-line bg-accent-tint p-4 text-sm sm:col-span-2">
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 rounded-xl border border-accent bg-accent-tint p-4 text-sm sm:col-span-2">
           <dt>Valor convertido (cotação)</dt>
           <dd className="text-right tabular-nums">{formatBRL(result.baseCents)}</dd>
-          <dt>Spread ({spread || "0"}%)</dt>
+          <dt>Spread ({formatBps(card.spreadBps)}%)</dt>
           <dd className="text-right tabular-nums">+ {formatBRL(result.spreadCents)}</dd>
-          <dt>IOF ({iof}%)</dt>
+          <dt>IOF ({formatBps(iofBps)}%)</dt>
           <dd className="text-right tabular-nums">+ {formatBRL(result.iofCents)}</dd>
           <dt className="border-t border-line-strong pt-2 text-base font-semibold">Total estimado na fatura</dt>
-          <dd className="border-t border-line-strong pt-2 text-right text-xl font-semibold tabular-nums">
-            {formatBRL(result.totalCents)}
-          </dd>
+          <dd className="border-t border-line-strong pt-2 text-right text-xl font-semibold tabular-nums">{formatBRL(result.totalCents)}</dd>
           <dt className="text-xs text-ink-muted">Cotação efetiva</dt>
           <dd className="text-right text-xs text-ink-muted">
             R$ {formatRateMicro(result.effectiveRateMicro)} por {currency} (+{formatBps(Math.max(0, result.extraBps))}% sobre a cotação)

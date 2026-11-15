@@ -37,7 +37,7 @@ function badge(r: PayableRow, isCard: boolean): { text: string; cls: string } {
   }
 }
 
-export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
+export default async function PagarPage({ searchParams }: PageProps<"/previsao/pagar">) {
   const sp = await searchParams;
   const { supabase } = await requireUser();
   const today = todayISO();
@@ -145,7 +145,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
         title="Contas a pagar"
         subtitle="Assinaturas, contas fixas, parcelas e vencimentos."
         action={
-          <a href="/pagar/calendario.ics" className={btnGhost} download>
+          <a href="/previsao/pagar/calendario.ics" className={btnGhost} download>
             Baixar para o calendário (.ics)
           </a>
         }
@@ -212,7 +212,7 @@ export default async function PagarPage({ searchParams }: PageProps<"/pagar">) {
         </section>
       )}
 
-      <details open={commitments.length === 0} className="group">
+      <details open={commitments.length === 0 || str(sp.novo) === "1"} className="group">
         <summary className={`${btnPrimary} w-fit cursor-pointer list-none`}>+ Cadastrar</summary>
         <Card className="mt-3">
           {noPayment ? (
