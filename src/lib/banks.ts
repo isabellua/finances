@@ -14,7 +14,7 @@ const K = "#111111";
 
 export const BANKS: readonly Bank[] = [
   { slug: "nubank", name: "Nubank", color: "#820AD1", ink: W },
-  { slug: "itau", name: "Itaú", color: "#EC7000", ink: W },
+  { slug: "itau", name: "Itaú", color: "#FE6100", ink: W },
   { slug: "bradesco", name: "Bradesco", color: "#CC092F", ink: W },
   { slug: "banco-do-brasil", name: "Banco do Brasil", color: "#FAE128", ink: "#0B3B8C" },
   { slug: "caixa", name: "Caixa", color: "#005CA9", ink: W },
@@ -25,7 +25,7 @@ export const BANKS: readonly Bank[] = [
   { slug: "xp", name: "XP", color: K, ink: "#F5C400" },
   { slug: "sicoob", name: "Sicoob", color: "#003641", ink: "#9BD400" },
   { slug: "sicredi", name: "Sicredi", color: "#3FA535", ink: W },
-  { slug: "mercado-pago", name: "Mercado Pago", color: "#00B1EA", ink: W },
+  { slug: "mercado-pago", name: "Mercado Pago", color: "#FFE600", ink: "#2D3277" },
   { slug: "picpay", name: "PicPay", color: "#11C76F", ink: W },
   { slug: "neon", name: "Neon", color: "#00E5E5", ink: K },
 ];
@@ -35,25 +35,27 @@ export const CASH: Bank = { slug: "dinheiro", name: "Dinheiro", color: "#4B7F52"
 export const OTHER: Bank = { slug: "outro", name: "Outro banco", color: "#6B7280", ink: W };
 
 /**
- * Slugs com arquivo em public/banks/<slug>.svg. `bleed`: o SVG já é um ícone
- * quadrado com fundo próprio (ocupa o selo inteiro); senão vai sobre fundo branco.
+ * Slugs com arquivo em public/banks/<slug>.svg (sempre fundo transparente).
+ * `tile`: "brand" = logo sobre a cor do banco; "white" = sobre branco (logo da
+ * mesma cor do banco ou multicolorido, que sumiria sobre a cor).
+ * `mono`: desenha o logo todo em branco (logo de uma cor só, na cor do banco).
  */
-export const LOGOS: Readonly<Record<string, { bleed: boolean }>> = {
-  nubank: { bleed: true },
-  itau: { bleed: true },
-  bradesco: { bleed: true },
-  "banco-do-brasil": { bleed: true },
-  santander: { bleed: true },
-  xp: { bleed: true },
-  caixa: { bleed: false },
-  inter: { bleed: false },
-  btg: { bleed: false },
-  c6: { bleed: false },
-  sicoob: { bleed: false },
-  sicredi: { bleed: false },
-  "mercado-pago": { bleed: false },
-  picpay: { bleed: false },
-  neon: { bleed: false },
+export const LOGOS: Readonly<Record<string, { tile: "brand" | "white"; mono?: boolean }>> = {
+  nubank: { tile: "brand" },
+  itau: { tile: "brand" },
+  bradesco: { tile: "white" },
+  "banco-do-brasil": { tile: "brand" },
+  santander: { tile: "brand", mono: true },
+  inter: { tile: "brand", mono: true },
+  btg: { tile: "brand", mono: true },
+  c6: { tile: "brand" },
+  sicoob: { tile: "brand" },
+  picpay: { tile: "brand", mono: true },
+  "mercado-pago": { tile: "brand" },
+  neon: { tile: "brand" },
+  caixa: { tile: "white" },
+  sicredi: { tile: "white" },
+  xp: { tile: "white" },
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;

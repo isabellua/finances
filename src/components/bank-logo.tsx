@@ -1,19 +1,28 @@
 import { LOGOS, initials, type Bank } from "@/lib/banks";
 
-/** Logo do banco (SVG em public/banks) ou, sem arquivo, selo com a cor e as iniciais. */
+/** Logo do banco (SVG transparente em public/banks) sobre a cor do banco ou, sem arquivo, selo com iniciais. */
 export function BankLogo({ bank, size = 40, label }: { bank: Bank; size?: number; label?: string }) {
   const logo = LOGOS[bank.slug];
   if (logo) {
+    const white = logo.tile === "white";
     return (
       <span
         aria-hidden
-        style={{ width: size, height: size, padding: logo.bleed ? 0 : Math.round(size * 0.12) }}
-        className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg ${
-          logo.bleed ? "" : "border border-line bg-white"
-        }`}
+        style={{
+          width: size,
+          height: size,
+          padding: Math.round(size * 0.16),
+          backgroundColor: white ? "#FFFFFF" : bank.color,
+        }}
+        className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg ${white ? "border border-line" : ""}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/banks/${bank.slug}.svg`} alt="" className="h-full w-full object-contain" />
+        <img
+          src={`/banks/${bank.slug}.svg`}
+          alt=""
+          style={logo.mono ? { filter: "brightness(0) invert(1)" } : undefined}
+          className="h-full w-full object-contain"
+        />
       </span>
     );
   }

@@ -1,7 +1,7 @@
 # Logos dos bancos
 
-Coloque aqui o SVG oficial de cada banco, com o nome do slug: `nubank.svg`, `itau.svg`,
-`banco-do-brasil.svg`… (slugs em `src/lib/banks.ts`).
+SVGs com fundo transparente, vindos do fork https://github.com/isabellua/Bancos-em-SVG
+(origem: Tgentil/Bancos-em-SVG, sem licença declarada; logos são marcas dos bancos).
 
-Depois acrescente o slug no conjunto `LOGOS` desse arquivo. Sem isso, o app mostra um
-selo com a cor do banco e as iniciais. Use o logo no formato quadrado/ícone, de preferência.
+Arquivo = `<slug>.svg` (slugs em `src/lib/banks.ts`). Para trocar/adicionar: copie o SVG e
+declare o slug em `LOGOS` (`tile`: sobre a cor do banco ou sobre branco; `mono`: logo todo em branco).
