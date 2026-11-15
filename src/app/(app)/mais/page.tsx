@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 
 const items = [
+  { href: "/espacos", title: "Espaços", text: "Separe finanças pessoais, do trabalho, da família ou de amigos, e convide pessoas." },
   { href: "/cambio", title: "Compra internacional", text: "Calcule o custo de uma compra em moeda estrangeira no cartão: cotação, spread e IOF." },
   { href: "/categorias", title: "Categorias", text: "Crie e remova as categorias dos lançamentos." },
 ];

@@ -11,6 +11,7 @@ import {
   ListBullets,
   Tag,
   UploadSimple,
+  UsersThree,
   type Icon,
 } from "@phosphor-icons/react";
 import { signOut } from "@/app/login/actions";
@@ -23,6 +24,7 @@ const links: { href: string; label: string; Icon: Icon; primary: boolean }[] = [
   { href: "/contas", label: "Contas", Icon: Bank, primary: true },
   { href: "/cambio", label: "Câmbio", Icon: CurrencyCircleDollar, primary: false },
   { href: "/categorias", label: "Categorias", Icon: Tag, primary: false },
+  { href: "/espacos", label: "Espaços", Icon: UsersThree, primary: false },
 ];
 
 // No celular, o que não cabe na barra fica atrás de "Mais".

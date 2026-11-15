@@ -150,7 +150,7 @@ export async function saveIofParam(formData: FormData) {
 
   const { error } = await supabase.from("tax_params").upsert(
     { key: "iof_card_international", rate_bps: rate, valid_from: from.data, note: note || null },
-    { onConflict: "user_id,key,valid_from" },
+    { onConflict: "workspace_id,key,valid_from" },
   );
   if (error) back(PATH, "erro", "Não foi possível salvar a alíquota.");
 

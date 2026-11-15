@@ -149,7 +149,7 @@ export async function importTransactions(
 
     const { data, error } = await supabase
       .from("transactions")
-      .upsert(records, { onConflict: "user_id,external_hash", ignoreDuplicates: true })
+      .upsert(records, { onConflict: "workspace_id,external_hash", ignoreDuplicates: true })
       .select("id");
     if (error) return { error: "Não foi possível importar. Nada foi salvo nesta etapa." };
     inserted = data?.length ?? 0;
@@ -175,7 +175,7 @@ export async function importTransactions(
   if (rules.size > 0) {
     await supabase.from("category_rules").upsert(
       [...rules].map(([pattern, category_id]) => ({ pattern, category_id })),
-      { onConflict: "user_id,pattern" },
+      { onConflict: "workspace_id,pattern" },
     );
   }
 

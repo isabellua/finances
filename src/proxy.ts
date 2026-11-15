@@ -30,9 +30,10 @@ export async function proxy(request: NextRequest) {
   const isLogin = request.nextUrl.pathname === "/login";
 
   if (!user && !isLogin) {
+    const dest = request.nextUrl.pathname + request.nextUrl.search;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.search = "";
+    url.search = dest !== "/" ? `?next=${encodeURIComponent(dest)}` : "";
     return NextResponse.redirect(url);
   }
 

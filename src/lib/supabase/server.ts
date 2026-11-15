@@ -3,7 +3,12 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
-export async function createClient() {
+/**
+ * Cliente do Supabase para o servidor. Com `workspaceId`, toda consulta vai com o
+ * cabeçalho `x-workspace-id`, que o banco usa (current_workspace) para escolher o espaço.
+ * O banco só aceita espaços de que o usuário é membro; um id alheio resulta em zero dados.
+ */
+export async function createClient(workspaceId?: string) {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
@@ -22,5 +27,6 @@ export async function createClient() {
         }
       },
     },
+    global: workspaceId ? { headers: { "x-workspace-id": workspaceId } } : undefined,
   });
 }

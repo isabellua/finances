@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { signInMessage, signUpMessage } from "@/lib/auth-errors";
 import { back } from "@/lib/flash";
+import { safeNext } from "@/lib/workspace";
 
 const credentials = z.object({
   email: z.email("E-mail inválido."),
@@ -26,7 +27,7 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) back("/login", "erro", signInMessage(error.code));
 
-  redirect("/");
+  redirect(safeNext(String(formData.get("next") ?? "/")));
 }
 
 export async function signUp(formData: FormData) {
@@ -41,7 +42,7 @@ export async function signUp(formData: FormData) {
   if (!data.session) {
     back("/login", "ok", "Conta criada. Confirme o e-mail para entrar.");
   }
-  redirect("/");
+  redirect(safeNext(String(formData.get("next") ?? "/")));
 }
 
 export async function signOut() {

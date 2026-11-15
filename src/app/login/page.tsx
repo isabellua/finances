@@ -7,6 +7,7 @@ export default async function LoginPage({
   const sp = await searchParams;
   const erro = typeof sp.erro === "string" ? sp.erro : undefined;
   const ok = typeof sp.ok === "string" ? sp.ok : undefined;
+  const next = typeof sp.next === "string" ? sp.next : "";
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
@@ -16,6 +17,7 @@ export default async function LoginPage({
       {ok && <p role="status" className="rounded-md bg-pos-tint p-3 text-sm text-pos">{ok}</p>}
 
       <form className="flex flex-col gap-3">
+        <input type="hidden" name="next" value={next} />
         <label className="flex flex-col gap-1 text-sm">
           E-mail
           <input
