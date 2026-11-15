@@ -1,22 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { BANKS, CASH, OTHER, bankBySlug, type Bank } from "@/lib/banks";
+import { BANKS, OTHER, bankBySlug, isHexColor, type Bank } from "@/lib/banks";
 import { ACCOUNT_TYPE_LABEL, type AccountType } from "@/lib/types";
 import { BankLogo } from "./bank-logo";
 import { Field, inputCls } from "./ui";
 
-const TILES: Bank[] = [...BANKS, CASH, OTHER];
+const TILES: Bank[] = [...BANKS, OTHER];
 
 /** Escolha do banco (grade com logo/cor) e, depois, do tipo de conta. */
 export function BankPicker({
   defaultSlug,
   defaultType = "checking",
   defaultOther = "",
+  defaultColor,
 }: {
   defaultSlug?: string | null;
   defaultType?: AccountType;
   defaultOther?: string;
+  defaultColor?: string | null;
 }) {
   const [slug, setSlug] = useState<string | null>(bankBySlug(defaultSlug)?.slug ?? null);
   const [q, setQ] = useState("");
@@ -24,11 +26,9 @@ export function BankPicker({
 
   const needle = q.trim().toLowerCase();
   const tiles = needle ? TILES.filter((b) => b.name.toLowerCase().includes(needle)) : TILES;
-  const isCash = slug === CASH.slug;
-  const types = (Object.entries(ACCOUNT_TYPE_LABEL) as [AccountType, string][]).filter(
-    ([t]) => (isCash ? t === "cash" : t !== "cash"),
-  );
-  const effectiveType: AccountType = isCash ? "cash" : type === "cash" ? "checking" : type;
+  const [color, setColor] = useState(isHexColor(defaultColor) ? defaultColor : OTHER.color);
+  const types = (Object.entries(ACCOUNT_TYPE_LABEL) as [AccountType, string][]).filter(([t]) => t !== "cash");
+  const effectiveType: AccountType = type === "cash" ? "checking" : type;
 
   return (
     <div className="flex flex-col gap-4 sm:col-span-2">
@@ -65,9 +65,20 @@ export function BankPicker({
       </div>
 
       {slug === OTHER.slug && (
-        <Field label="Nome do banco">
-          <input name="other_name" defaultValue={defaultOther} maxLength={60} required className={inputCls} />
-        </Field>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <Field label="Nome do banco">
+            <input name="other_name" defaultValue={defaultOther} maxLength={60} required className={inputCls} />
+          </Field>
+          <Field label="Cor">
+            <input
+              name="other_color"
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-10 w-16 cursor-pointer rounded-lg border border-line bg-raised p-1"
+            />
+          </Field>
+        </div>
       )}
 
       {slug && (

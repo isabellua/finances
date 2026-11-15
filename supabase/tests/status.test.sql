@@ -38,3 +38,11 @@ select tests.assert((select bank_slug from public.accounts where name = 'Conta')
 select tests.blocked($q$update public.accounts set bank_slug = 'Nubank Roxo!' where name = 'Conta'$q$, 'bank_slug com caracteres inválidos');
 select tests.allowed($q$update public.accounts set bank_slug = null where name = 'Conta'$q$, 'bank_slug pode ficar vazio (contas antigas)');
 reset role;
+
+-- =================================================================== cor do banco
+select tests.login('dddddddd-0000-0000-0000-000000000004'::uuid);
+select tests.allowed($q$update public.accounts set bank_color = '#12ABef' where name = 'Conta'$q$, 'bank_color válida');
+select tests.blocked($q$update public.accounts set bank_color = 'vermelho' where name = 'Conta'$q$, 'bank_color inválida');
+select tests.blocked($q$update public.accounts set bank_color = '#12345' where name = 'Conta'$q$, 'bank_color curta');
+select tests.allowed($q$update public.accounts set bank_color = null where name = 'Conta'$q$, 'bank_color pode ficar vazia');
+reset role;

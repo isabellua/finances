@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { CASH, OTHER, bankBySlug } from "@/lib/banks";
+import { CASH, OTHER, bankBySlug, isHexColor } from "@/lib/banks";
 import { back } from "@/lib/flash";
 import { parsePercentToBps } from "@/lib/fx";
 import { parseBRLToCents } from "@/lib/money";
@@ -14,6 +14,7 @@ const PATH = "/contas";
 const accountSchema = z.object({
   bank: z.string().regex(/^[a-z0-9-]{2,30}$/, "Escolha o banco."),
   other_name: z.string().trim().max(60),
+  other_color: z.string(),
   type: z.enum(["checking", "savings", "investment", "cash"]),
 });
 
@@ -22,24 +23,26 @@ function resolveBank(formData: FormData) {
   const parsed = accountSchema.safeParse({
     bank: formData.get("bank") ?? "",
     other_name: formData.get("other_name") ?? "",
+    other_color: formData.get("other_color") ?? "",
     type: formData.get("type") ?? "checking",
   });
   if (!parsed.success) back(PATH, "erro", parsed.error.issues[0]?.message ?? "Dados da conta inválidos.");
   const bank = bankBySlug(parsed.data.bank);
-  if (!bank) back(PATH, "erro", "Banco desconhecido.");
+  if (!bank || bank.slug === CASH.slug) back(PATH, "erro", "Banco desconhecido.");
   let institution = bank.name;
+  let color: string | null = null;
   if (bank.slug === OTHER.slug) {
     institution = parsed.data.other_name;
     if (!institution) back(PATH, "erro", "Informe o nome do banco.");
+    color = isHexColor(parsed.data.other_color) ? parsed.data.other_color : OTHER.color;
   }
-  const type: AccountType =
-    bank.slug === CASH.slug ? "cash" : parsed.data.type === "cash" ? "checking" : parsed.data.type;
-  return { slug: bank.slug, institution, type };
+  const type: AccountType = parsed.data.type === "cash" ? "checking" : parsed.data.type;
+  return { slug: bank.slug, institution, type, color };
 }
 
 export async function createAccount(formData: FormData) {
   const { supabase } = await requireUser();
-  const { slug, institution, type } = resolveBank(formData);
+  const { slug, institution, type, color } = resolveBank(formData);
 
   // O nome é derivado do banco. Se já houver outra conta igual (mesmo banco
   // e tipo), numera: "Itaú", "Itaú 2".
@@ -53,7 +56,7 @@ export async function createAccount(formData: FormData) {
 
   const { error } = await supabase
     .from("accounts")
-    .insert({ name, institution, type, bank_slug: slug });
+    .insert({ name, institution, type, bank_slug: slug, bank_color: color });
   if (error) back(PATH, "erro", "Não foi possível criar a conta.");
 
   revalidatePath(PATH);
@@ -177,7 +180,7 @@ export async function updateAccount(formData: FormData) {
   const id = z.uuid().safeParse(formData.get("id"));
   if (!id.success) back(PATH, "erro", "Conta inválida.");
 
-  const { slug, institution, type } = resolveBank(formData);
+  const { slug, institution, type, color } = resolveBank(formData);
 
   // Mesma regra de nome da criação, sem contar a própria conta.
   const { count } = await supabase
@@ -196,6 +199,7 @@ export async function updateAccount(formData: FormData) {
       institution,
       type,
       bank_slug: slug,
+      bank_color: color,
     })
     .eq("id", id.data)
     .select("id");

@@ -4,10 +4,8 @@
  * As cores são APROXIMADAS (de memória, sem fonte oficial verificada): ajuste
  * aqui se alguma estiver errada. `ink` é a cor do texto sobre `color`.
  *
- * Logos: o app não traz logos oficiais (marca registrada, e este ambiente não
- * baixa arquivos de terceiros). Solte o SVG em `public/banks/<slug>.svg` e
- * acrescente o slug em LOGOS abaixo. Sem arquivo, aparece um selo com a cor do
- * banco e as iniciais.
+ * Logos: arquivos em public/banks/<slug>.svg, vindos do repositório público
+ * Tgentil/Bancos-em-SVG (que não declara licença; logos são marcas dos bancos).
  */
 export type Bank = { slug: string; name: string; color: string; ink: string };
 
@@ -27,21 +25,46 @@ export const BANKS: readonly Bank[] = [
   { slug: "xp", name: "XP", color: K, ink: "#F5C400" },
   { slug: "sicoob", name: "Sicoob", color: "#003641", ink: "#9BD400" },
   { slug: "sicredi", name: "Sicredi", color: "#3FA535", ink: W },
-  { slug: "banrisul", name: "Banrisul", color: "#0057A8", ink: W },
   { slug: "mercado-pago", name: "Mercado Pago", color: "#00B1EA", ink: W },
   { slug: "picpay", name: "PicPay", color: "#11C76F", ink: W },
   { slug: "neon", name: "Neon", color: "#00E5E5", ink: K },
-  { slug: "original", name: "Original", color: "#00A859", ink: W },
-  { slug: "safra", name: "Safra", color: "#0B2C5F", ink: W },
-  { slug: "pagbank", name: "PagBank", color: "#41B34A", ink: W },
-  { slug: "will", name: "Will Bank", color: "#FFD60A", ink: K },
 ];
 
+/** Só para contas antigas em dinheiro: não aparece na lista de escolha. */
 export const CASH: Bank = { slug: "dinheiro", name: "Dinheiro", color: "#4B7F52", ink: W };
 export const OTHER: Bank = { slug: "outro", name: "Outro banco", color: "#6B7280", ink: W };
 
-/** Slugs que já têm arquivo em public/banks/<slug>.svg. */
-export const LOGOS: ReadonlySet<string> = new Set<string>([]);
+/**
+ * Slugs com arquivo em public/banks/<slug>.svg. `bleed`: o SVG já é um ícone
+ * quadrado com fundo próprio (ocupa o selo inteiro); senão vai sobre fundo branco.
+ */
+export const LOGOS: Readonly<Record<string, { bleed: boolean }>> = {
+  nubank: { bleed: true },
+  itau: { bleed: true },
+  bradesco: { bleed: true },
+  "banco-do-brasil": { bleed: true },
+  santander: { bleed: true },
+  xp: { bleed: true },
+  caixa: { bleed: false },
+  inter: { bleed: false },
+  btg: { bleed: false },
+  c6: { bleed: false },
+  sicoob: { bleed: false },
+  sicredi: { bleed: false },
+  "mercado-pago": { bleed: false },
+  picpay: { bleed: false },
+  neon: { bleed: false },
+};
+
+const HEX = /^#[0-9a-f]{6}$/i;
+export const isHexColor = (v: string | null | undefined): v is string => !!v && HEX.test(v);
+
+/** Cor do texto (preto/branco) com melhor contraste sobre `hex`. */
+export function inkFor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.6 ? K : W;
+}
 
 const ALL = [...BANKS, CASH, OTHER];
 
@@ -67,8 +90,18 @@ export function bankFromName(name: string | null | undefined): Bank | null {
 }
 
 /** Banco da conta: o escolhido; senão, o deduzido do nome; senão, "Outro". */
-export function bankOf(account: { bank_slug?: string | null; institution: string | null; name: string }): Bank {
-  return bankBySlug(account.bank_slug) ?? bankFromName(account.institution ?? account.name) ?? OTHER;
+export function bankOf(account: {
+  bank_slug?: string | null;
+  bank_color?: string | null;
+  institution: string | null;
+  name: string;
+}): Bank {
+  const bySlug = account.bank_slug === OTHER.slug ? null : bankBySlug(account.bank_slug);
+  const known = bySlug ?? (account.bank_slug === OTHER.slug ? null : bankFromName(account.institution ?? account.name));
+  if (known) return known;
+  const name = account.institution ?? account.name;
+  if (isHexColor(account.bank_color)) return { ...OTHER, name, color: account.bank_color, ink: inkFor(account.bank_color) };
+  return { ...OTHER, name };
 }
 
 export function initials(name: string): string {

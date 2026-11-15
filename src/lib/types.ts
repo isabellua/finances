@@ -10,6 +10,7 @@ export type Account = {
   name: string;
   institution: string | null;
   bank_slug?: string | null;
+  bank_color?: string | null;
   type: AccountType;
   opening_balance_cents: number;
   archived: boolean;

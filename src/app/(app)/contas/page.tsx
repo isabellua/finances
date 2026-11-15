@@ -72,7 +72,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
   ] = await Promise.all([
     supabase
       .from("accounts")
-      .select("id,name,institution,bank_slug,type,opening_balance_cents,archived")
+      .select("id,name,institution,bank_slug,bank_color,type,opening_balance_cents,archived")
       .eq("archived", false)
       .order("created_at")
       .overrideTypes<Account[]>(),
@@ -86,7 +86,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
 
     supabase
       .from("accounts")
-      .select("id,name,institution,bank_slug,type,opening_balance_cents,archived")
+      .select("id,name,institution,bank_slug,bank_color,type,opening_balance_cents,archived")
       .eq("archived", true)
       .order("created_at")
       .overrideTypes<Account[]>(),
@@ -192,6 +192,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                     defaultSlug={bank.slug}
                     defaultType={a.type}
                     defaultOther={bank.slug === "outro" ? (a.institution ?? "") : ""}
+                    defaultColor={a.bank_color}
                   />
                   <button className={`${btnPrimary} w-fit`}>Salvar alterações</button>
                 </form>

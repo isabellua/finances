@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BANKS, bankBySlug, bankFromName, bankOf, initials, OTHER } from "./banks";
+import { BANKS, LOGOS, bankBySlug, bankFromName, bankOf, initials, inkFor, isHexColor } from "./banks";
 
 describe("banks", () => {
   it("slugs únicos e válidos para a constraint do banco", () => {
@@ -27,7 +27,25 @@ describe("banks", () => {
   it("bankOf prioriza slug, depois nome, depois outro", () => {
     expect(bankOf({ bank_slug: "nubank", institution: "Itaú", name: "x" }).slug).toBe("nubank");
     expect(bankOf({ institution: "Inter", name: "Inter" }).slug).toBe("inter");
-    expect(bankOf({ institution: "Zzz", name: "Zzz" })).toBe(OTHER);
+    expect(bankOf({ institution: "Zzz", name: "Zzz" }).slug).toBe("outro");
+    expect(bankOf({ bank_slug: "outro", institution: "Itaú Cooperativa", name: "x", bank_color: "#112233" }).color).toBe("#112233");
+    const c = bankOf({ institution: "Zzz", name: "Zzz", bank_color: "#112233" });
+    expect(c.color).toBe("#112233");
+    expect(c.name).toBe("Zzz");
+  });
+  it("removidos da lista", () => {
+    for (const s of ["banrisul", "original", "safra", "pagbank", "will", "dinheiro"])
+      expect(BANKS.some((b) => b.slug === s)).toBe(false);
+  });
+  it("todo logo declarado é de banco da lista", () => {
+    for (const s of Object.keys(LOGOS)) expect(BANKS.some((b) => b.slug === s)).toBe(true);
+  });
+  it("inkFor e isHexColor", () => {
+    expect(inkFor("#FFFF00")).toBe("#111111");
+    expect(inkFor("#000080")).toBe("#FFFFFF");
+    expect(isHexColor("#12abEF")).toBe(true);
+    expect(isHexColor("red")).toBe(false);
+    expect(isHexColor(null)).toBe(false);
   });
   it("initials", () => {
     expect(initials("Nubank")).toBe("NU");
