@@ -70,3 +70,12 @@ describe("percentuais", () => {
     expect(annualFromMonthlyPpm(42010)).toBeLessThan(65);
   });
 });
+
+describe("exemplo real: compra internacional parcelada (BB, ago/2026)", () => {
+  // US$ 62,95 a R$ 5,28 = R$ 332,40; IOF internacional (R$ 11,63) fica fora do parcelamento.
+  // O app mostrou 3 x R$ 121,69. O padrão (calibrado em nov/2026) erra ~0,6%: a taxa do banco varia.
+  it("estimativa fica a ~1% do valor real", () => {
+    const r = splitPlan(33240, BB_SPLIT).find((x) => x.parts === 3)!;
+    expect(Math.abs(r.installmentCents - 12169) / 12169).toBeLessThan(0.01);
+  });
+});

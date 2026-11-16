@@ -15,6 +15,7 @@ import {
   parseRateToMicro,
 } from "@/lib/fx";
 import { formatBRL } from "@/lib/money";
+import { splitPlan, type SplitParams } from "@/lib/split";
 import { effectiveIofBps } from "@/lib/tax";
 import { getPtax } from "./actions";
 
@@ -27,6 +28,8 @@ export type FxCard = {
   /** Já garantido pela página: sem spread configurado a calculadora nem aparece. */
   spreadBps: number;
   iofBps: number | null;
+  /** Parcelar compra à vista (BB etc.); null = o cartão não tem. */
+  split: SplitParams | null;
 };
 
 const RULE_TEXT: Record<FxCard["rule"], string> = {
@@ -34,6 +37,49 @@ const RULE_TEXT: Record<FxCard["rule"], string> = {
   closing_date: "cotação do dia do fechamento da fatura",
   due_date: "cotação do dia do vencimento da fatura",
 };
+
+/**
+ * Parcelar depois a compra já lançada à vista. O IOF da compra internacional é
+ * cobrado à parte e NÃO entra no valor parcelado; o parcelamento só financia o
+ * valor convertido (com spread). Exemplo real do BB: US$ 62,95 -> R$ 332,40
+ * parcelados em 3x; o IOF de R$ 11,63 veio em cobrança separada.
+ */
+function SplitBox({ converted, iof, split }: { converted: number; iof: number; split: SplitParams }) {
+  const rows = splitPlan(converted, split);
+  return (
+    <details className="rounded-xl border border-line p-4 text-sm sm:col-span-2">
+      <summary className="cursor-pointer font-medium">E se eu parcelar essa compra depois?</summary>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-ink-muted">
+          Abaixo de {formatBRL(split.minCents)} o cartão não deixa parcelar.
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-ink-muted">
+            Parcela-se só os {formatBRL(converted)} da compra convertida. O IOF de {formatBRL(iof)} vem à parte na fatura,
+            fora das parcelas.
+          </p>
+          <ul className="divide-y divide-line">
+            {rows.map((r) => (
+              <li key={r.parts} className="flex items-center justify-between gap-3 py-2">
+                <span className="tabular-nums">{r.parts} × {formatBRL(r.installmentCents)}</span>
+                <span className="text-right">
+                  <span className="block font-medium tabular-nums">{formatBRL(r.totalCents + iof)}</span>
+                  <span className="block text-xs text-ink-subtle tabular-nums">
+                    parcelas {formatBRL(r.totalCents)} + IOF {formatBRL(iof)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-ink-subtle">
+            Estimativa de juros do parcelamento ajustada a prints do app do BB; a taxa pode variar por data.
+          </p>
+        </div>
+      )}
+    </details>
+  );
+}
 
 function Submit({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -192,6 +238,9 @@ export function FxCalculator({
           </dd>
         </dl>
       )}
+
+
+      {result && card.split && <SplitBox converted={result.baseCents + result.spreadCents} iof={result.iofCents} split={card.split} />}
 
       <Field label="Descrição" hint="Opcional" className="sm:col-span-2">
         <input name="description" maxLength={200} placeholder="Ex.: hotel, passagem, assinatura" className={inputCls} />

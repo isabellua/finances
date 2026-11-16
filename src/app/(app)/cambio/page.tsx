@@ -5,7 +5,9 @@ import { requireUser } from "@/lib/auth";
 import { formatDateBR } from "@/lib/dates";
 import { convertFx, currencyExp, formatBps, formatForeign, formatRateMicro, impliedSpreadBps } from "@/lib/fx";
 import { centsToInput, formatBRL } from "@/lib/money";
-import type { Category, CreditCard, Transaction } from "@/lib/types";
+import { bankOf } from "@/lib/banks";
+import { resolveSplit } from "@/lib/split";
+import type { Account, Category, CreditCard, Transaction } from "@/lib/types";
 import { applyImpliedSpread, confirmFxActual, createFxTransaction, saveCardFx } from "./actions";
 import { FxCalculator, type FxCard } from "./fx-calculator";
 
@@ -16,10 +18,10 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
   const sp = await searchParams;
   const { supabase } = await requireUser();
 
-  const [{ data: cards }, { data: fxTxs }, { data: cats }] = await Promise.all([
+  const [{ data: cards }, { data: fxTxs }, { data: cats }, { data: accts }] = await Promise.all([
     supabase
       .from("credit_cards")
-      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived,fx_spread_bps,fx_iof_bps,fx_rate_rule")
+      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived,fx_spread_bps,fx_iof_bps,fx_rate_rule,split_rate_ppm,split_upfront_ppm,split_min_cents,split_max_parts")
       .eq("archived", false)
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
@@ -31,6 +33,10 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
       .limit(200)
       .overrideTypes<Transaction[]>(),
     supabase.from("categories").select("id,name").order("name").overrideTypes<Category[]>(),
+    supabase
+      .from("accounts")
+      .select("id,name,institution,bank_slug")
+      .overrideTypes<Pick<Account, "id" | "name" | "institution" | "bank_slug">[]>(),
   ]);
 
   const list = cards ?? [];
@@ -47,6 +53,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
 
   const selected = list.find((c) => c.id === str(sp.cartao)) ?? list[0];
   const configured = selected.fx_spread_bps != null;
+  const splitAcc = (accts ?? []).find((a) => a.id === selected.account_id);
   const fxCard: FxCard | null = configured
     ? {
         id: selected.id,
@@ -56,6 +63,7 @@ export default async function CambioPage({ searchParams }: PageProps<"/cambio">)
         rule: selected.fx_rate_rule ?? "purchase_date",
         spreadBps: selected.fx_spread_bps!,
         iofBps: selected.fx_iof_bps ?? null,
+        split: resolveSplit(selected, splitAcc ? bankOf(splitAcc).slug : null),
       }
     : null;
 
