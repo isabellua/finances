@@ -25,6 +25,11 @@ export type CreditCard = {
   closing_day: number;
   due_day: number;
   last4: string | null;
+  nickname?: string | null;
+  split_rate_ppm?: number | null;
+  split_upfront_ppm?: number | null;
+  split_min_cents?: number | null;
+  split_max_parts?: number | null;
   archived: boolean;
   fx_spread_bps?: number | null;
   fx_iof_bps?: number | null;

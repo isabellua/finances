@@ -46,3 +46,11 @@ select tests.blocked($q$update public.accounts set bank_color = 'vermelho' where
 select tests.blocked($q$update public.accounts set bank_color = '#12345' where name = 'Conta'$q$, 'bank_color curta');
 select tests.allowed($q$update public.accounts set bank_color = null where name = 'Conta'$q$, 'bank_color pode ficar vazia');
 reset role;
+
+-- =================================================================== cartão: apelido e parcelamento
+select tests.login('dddddddd-0000-0000-0000-000000000004'::uuid);
+select tests.allowed($q$update public.credit_cards set nickname = 'Cartão da viagem', split_rate_ppm = 42010, split_upfront_ppm = 6500, split_min_cents = 10000, split_max_parts = 12 where id = (select id from public.credit_cards limit 1)$q$, 'apelido e parâmetros de parcelamento válidos');
+select tests.blocked($q$update public.credit_cards set nickname = '' where id = (select id from public.credit_cards limit 1)$q$, 'apelido vazio');
+select tests.blocked($q$update public.credit_cards set split_max_parts = 1 where id = (select id from public.credit_cards limit 1)$q$, 'máximo de parcelas < 2');
+select tests.blocked($q$update public.credit_cards set split_rate_ppm = -1 where id = (select id from public.credit_cards limit 1)$q$, 'juros negativo');
+reset role;

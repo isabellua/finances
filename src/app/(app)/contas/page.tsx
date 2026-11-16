@@ -7,6 +7,7 @@ import { BankLogo } from "@/components/bank-logo";
 import { BankPicker } from "@/components/bank-picker";
 import { CARD_BRANDS, bankOf } from "@/lib/banks";
 import { formatBps } from "@/lib/fx";
+import { BB_SPLIT, formatPpmPercent, resolveSplit } from "@/lib/split";
 import { centsToInput, formatBRL } from "@/lib/money";
 import {
   ACCOUNT_TYPE_LABEL,
@@ -53,6 +54,28 @@ function FxFields({ c }: { c?: CreditCard }) {
   );
 }
 
+/** Parcelar compra à vista (só alguns bancos). Em branco, o BB usa o padrão ajustado ao print do app. */
+function SplitFields({ c, bankSlug }: { c?: CreditCard; bankSlug?: string }) {
+  const isBB = bankSlug === "banco-do-brasil";
+  return (
+    <fieldset className="grid gap-3 rounded-lg border border-line p-3 sm:col-span-2 sm:grid-cols-4">
+      <legend className="px-1 text-sm font-medium">Parcelar compra à vista (opcional)</legend>
+      <Field label="Juros ao mês (%)" hint={isBB ? `Em branco: ${formatPpmPercent(BB_SPLIT.ratePpm)}% (ajustado ao print do BB)` : "Em branco: sem parcelamento"}>
+        <input name="split_rate" inputMode="decimal" defaultValue={c?.split_rate_ppm != null ? formatPpmPercent(c.split_rate_ppm) : ""} className={inputCls} />
+      </Field>
+      <Field label="Custo inicial (%)" hint="IOF e taxas cobrados no ato">
+        <input name="split_upfront" inputMode="decimal" defaultValue={c?.split_upfront_ppm != null ? formatPpmPercent(c.split_upfront_ppm) : ""} className={inputCls} />
+      </Field>
+      <Field label="Compra mínima (R$)">
+        <input name="split_min" inputMode="decimal" defaultValue={c?.split_min_cents != null ? centsToInput(c.split_min_cents) : ""} className={inputCls} />
+      </Field>
+      <Field label="Máx. de parcelas">
+        <input name="split_max" type="number" min={2} max={48} defaultValue={c?.split_max_parts ?? ""} className={inputCls} />
+      </Field>
+    </fieldset>
+  );
+}
+
 export default async function ContasPage({ searchParams }: PageProps<"/contas">) {
   const sp = await searchParams;
   const { supabase } = await requireUser();
@@ -78,7 +101,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
       .overrideTypes<Account[]>(),
     supabase
       .from("credit_cards")
-      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived")
+      .select("id,account_id,name,nickname,brand,credit_limit_cents,closing_day,due_day,last4,archived,split_rate_ppm,split_upfront_ppm,split_min_cents,split_max_parts")
       .eq("archived", false)
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
@@ -92,7 +115,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
       .overrideTypes<Account[]>(),
     supabase
       .from("credit_cards")
-      .select("id,account_id,name,brand,credit_limit_cents,closing_day,due_day,last4,archived")
+      .select("id,account_id,name,nickname,brand,credit_limit_cents,closing_day,due_day,last4,archived,split_rate_ppm,split_upfront_ppm,split_min_cents,split_max_parts")
       .eq("archived", true)
       .order("created_at")
       .overrideTypes<CreditCard[]>(),
@@ -228,6 +251,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                     ))}
                   </select>
                 </Field>
+                <Field label="Apelido do cartão" hint="Opcional. Ex.: Ourocard viagens" className="sm:col-span-2">
+                  <input name="nickname" maxLength={40} className={inputCls} />
+                </Field>
                 <Field label="Bandeira">
                   <select name="brand" required className={inputCls}>
                     {CARD_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -246,6 +272,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                   <input name="limit" inputMode="decimal" className={inputCls} />
                 </Field>
                 <FxFields />
+                <SplitFields />
                 <div className="flex gap-2 sm:col-span-2">
                   <button className={btnPrimary}>Salvar cartão</button>
                   <Link href="/contas" className={btnGhost}>Cancelar</Link>
@@ -268,23 +295,25 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">{bank.name}</p>
-                      <p className="text-xs opacity-80">{c.brand ?? "Cartão"} · paga por {acc?.name ?? "—"}</p>
+                      <p className="truncate font-semibold">{c.nickname ?? bank.name}</p>
+                      <p className="truncate text-xs opacity-80">
+                        {c.brand ?? "Cartão"}
+                        {c.nickname ? ` · ${bank.name}` : ""} · paga por {acc?.name ?? "—"}
+                        {c.last4 ? ` · final ${c.last4}` : ""}
+                      </p>
                     </div>
                     <BankLogo bank={bank} size={40} />
                   </div>
-                  <div className="flex items-end justify-between gap-3">
-                    <p className="font-mono text-sm tracking-widest">•••• {c.last4 ?? "····"}</p>
-                    <div className="text-right text-xs opacity-90">
-                      <p>Fecha dia {c.closing_day} · vence dia {c.due_day}</p>
-                      {c.credit_limit_cents != null && (
-                        <p className="tabular-nums">Limite {formatBRL(c.credit_limit_cents)}</p>
-                      )}
-                    </div>
+                  <div className="text-xs opacity-90">
+                    <p>Fecha dia {c.closing_day} · vence dia {c.due_day}</p>
+                    {c.credit_limit_cents != null && <p className="tabular-nums">Limite {formatBRL(c.credit_limit_cents)}</p>}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
                   <Link href={`/previsao/faturas?cartao=${c.id}`} className="text-accent-text underline">Ver fatura</Link>
+                  {resolveSplit(c, bank.slug) && (
+                    <Link href={`/parcelar?cartao=${c.id}`} className="text-accent-text underline">Simular parcelamento</Link>
+                  )}
                   <Link href={`/cambio?cartao=${c.id}`} className="text-accent-text underline">Converter compra internacional</Link>
                   <Link href={editingCard ? "/contas" : `/contas?editarCartao=${c.id}`} className="text-accent-text underline">
                     {editingCard ? "Fechar" : "Editar"}
@@ -308,6 +337,9 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                           {list.map((acc) => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                         </select>
                       </Field>
+                      <Field label="Apelido do cartão" hint="Opcional" className="sm:col-span-2">
+                        <input name="nickname" maxLength={40} defaultValue={c.nickname ?? ""} className={inputCls} />
+                      </Field>
                       <Field label="Bandeira">
                         <select name="brand" defaultValue={c.brand ?? "Outra"} className={inputCls}>
                           {CARD_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -326,6 +358,7 @@ export default async function ContasPage({ searchParams }: PageProps<"/contas">)
                         <input name="limit" defaultValue={c.credit_limit_cents != null ? centsToInput(c.credit_limit_cents) : ""} inputMode="decimal" className={inputCls} />
                       </Field>
                       <FxFields c={c} />
+                      <SplitFields c={c} bankSlug={bank.slug} />
                       <button className={`${btnPrimary} sm:col-span-2`}>Salvar alterações</button>
                     </form>
                   </Card>

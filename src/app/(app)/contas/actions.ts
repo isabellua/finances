@@ -7,6 +7,7 @@ import { CASH, OTHER, bankBySlug, isHexColor } from "@/lib/banks";
 import { back } from "@/lib/flash";
 import { parsePercentToBps } from "@/lib/fx";
 import { parseBRLToCents } from "@/lib/money";
+import { parsePercentToPpm } from "@/lib/split";
 import { ACCOUNT_TYPE_LABEL, type AccountType } from "@/lib/types";
 
 const PATH = "/contas";
@@ -110,6 +111,33 @@ function fxFields(formData: FormData) {
   };
 }
 
+/** Apelido opcional do cartão. */
+function nicknameField(formData: FormData): string | null {
+  const v = String(formData.get("nickname") ?? "").trim();
+  if (v.length > 40) back(PATH, "erro", "Apelido do cartão: até 40 caracteres.");
+  return v === "" ? null : v;
+}
+
+/** Parcelar compra à vista (opcional): em branco = padrão do banco, se houver. */
+function splitFields(formData: FormData) {
+  const rawRate = String(formData.get("split_rate") ?? "").trim();
+  const rawUp = String(formData.get("split_upfront") ?? "").trim();
+  const rawMin = String(formData.get("split_min") ?? "").trim();
+  const rawMax = String(formData.get("split_max") ?? "").trim();
+  if (rawRate === "") {
+    return { split_rate_ppm: null, split_upfront_ppm: null, split_min_cents: null, split_max_parts: null };
+  }
+  const rate = parsePercentToPpm(rawRate);
+  if (rate === null) back(PATH, "erro", "Juros do parcelamento inválidos (0 a 30% ao mês).");
+  const upfront = rawUp === "" ? 0 : parsePercentToPpm(rawUp);
+  if (upfront === null || upfront > 100_000) back(PATH, "erro", "Custo inicial do parcelamento inválido (0 a 10%).");
+  const min = rawMin === "" ? 0 : parseBRLToCents(rawMin);
+  if (min === null) back(PATH, "erro", "Valor mínimo para parcelar inválido.");
+  const max = rawMax === "" ? 12 : Number(rawMax);
+  if (!Number.isInteger(max) || max < 2 || max > 48) back(PATH, "erro", "Máximo de parcelas: de 2 a 48.");
+  return { split_rate_ppm: rate, split_upfront_ppm: upfront, split_min_cents: min, split_max_parts: max };
+}
+
 const cardSchema = z.object({
   account_id: z.uuid("Conta inválida."),
   brand: z.string().trim().min(1, "Escolha a bandeira.").max(40),
@@ -141,17 +169,20 @@ export async function createCard(formData: FormData) {
     .single();
   if (!account) back(PATH, "erro", "Conta não encontrada.");
 
-  const name = `${account.institution ?? account.name} ${parsed.data.brand}`;
+  const nickname = nicknameField(formData);
+  const name = nickname ?? `${account.institution ?? account.name} ${parsed.data.brand}`;
 
   const { error } = await supabase.from("credit_cards").insert({
     account_id: parsed.data.account_id,
     name,
+    nickname,
     brand: parsed.data.brand,
     last4: parsed.data.last4 || null,
     credit_limit_cents: limit,
     closing_day: parsed.data.closing_day,
     due_day: parsed.data.due_day,
     ...fxFields(formData),
+    ...splitFields(formData),
   });
   if (error) back(PATH, "erro", "Não foi possível criar o cartão.");
 
@@ -208,9 +239,9 @@ export async function updateAccount(formData: FormData) {
   // O nome do cartão deriva do banco da conta: mantém em sincronia.
   const { data: cards } = await supabase
     .from("credit_cards")
-    .select("id,brand")
+    .select("id,brand,nickname")
     .eq("account_id", id.data);
-  for (const c of cards ?? []) {
+  for (const c of (cards ?? []).filter((x) => !x.nickname)) {
     await supabase
       .from("credit_cards")
       .update({ name: `${institution} ${c.brand ?? ""}`.trim() })
@@ -247,17 +278,21 @@ export async function updateCard(formData: FormData) {
     .single();
   if (!account) back(PATH, "erro", "Conta não encontrada.");
 
+  const nickname = nicknameField(formData);
+
   const { data: updated, error } = await supabase
     .from("credit_cards")
     .update({
       account_id: parsed.data.account_id,
-      name: `${account.institution ?? account.name} ${parsed.data.brand}`,
+      name: nickname ?? `${account.institution ?? account.name} ${parsed.data.brand}`,
+      nickname,
       brand: parsed.data.brand,
       last4: parsed.data.last4 || null,
       credit_limit_cents: limit,
       closing_day: parsed.data.closing_day,
       due_day: parsed.data.due_day,
       ...fxFields(formData),
+      ...splitFields(formData),
     })
     .eq("id", id.data)
     .select("id");
