@@ -58,7 +58,9 @@ export default async function ParcelarPage({ searchParams }: PageProps<"/parcela
   const cents = rawValor === "" ? null : parseBRLToCents(rawValor);
 
   // Primeira parcela (data) -> dias a partir de hoje; padrão 30.
-  const today = todayISO();
+  // Os dias contam da data do PARCELAMENTO (não da compra): padrão hoje.
+  const rawHoje = str(sp.hoje)?.trim() ?? "";
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(rawHoje) ? rawHoje : todayISO();
   const rawPrimeira = str(sp.primeira)?.trim() ?? "";
   const days = /^\d{4}-\d{2}-\d{2}$/.test(rawPrimeira) ? daysBetween(today, rawPrimeira) : 30;
   const daysOk = days >= 1 && days <= 120 ? days : 30;
@@ -102,7 +104,10 @@ export default async function ParcelarPage({ searchParams }: PageProps<"/parcela
           <Field label="Juros ao mês (%)" hint={`Opcional. Padrão: ${formatPpmPercent(base.ratePpm)}`}>
             <input name="juros" inputMode="decimal" defaultValue={rawJuros} placeholder="3,94" className={inputCls} />
           </Field>
-          <Field label="Data da 1ª parcela" hint="Opcional. Padrão: 30 dias">
+          <Field label="Data do parcelamento" hint="Opcional. Padrão: hoje (não é a data da compra)">
+            <input name="hoje" type="date" defaultValue={rawHoje} className={inputCls} />
+          </Field>
+          <Field label="Data da 1ª parcela" hint="Opcional. Padrão: 30 dias depois">
             <input name="primeira" type="date" defaultValue={rawPrimeira} className={inputCls} />
           </Field>
           <fieldset className="grid gap-3 rounded-lg border border-line p-3 sm:col-span-3 sm:grid-cols-2">
