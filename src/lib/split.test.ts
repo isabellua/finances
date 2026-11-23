@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BB_SPLIT, annualFromMonthlyPpm, formatPpmPercent, parsePercentToPpm, resolveSplit, splitPlan } from "./split";
+import { BB_SPLIT, annualFromMonthlyPpm, impliedRatePpm, formatPpmPercent, parsePercentToPpm, resolveSplit, splitPlan } from "./split";
 
 // Print do app do Banco do Brasil, compra à vista de R$ 194,90 (16/11/2026).
 const PRINT: Record<number, [number, number]> = {
@@ -77,5 +77,34 @@ describe("exemplo real: compra internacional parcelada (BB, ago/2026)", () => {
   it("estimativa fica a ~1% do valor real", () => {
     const r = splitPlan(33240, BB_SPLIT).find((x) => x.parts === 3)!;
     expect(Math.abs(r.installmentCents - 12169) / 12169).toBeLessThan(0.01);
+  });
+});
+
+describe("print BB de ~18/11/2026: 3x de R$ 70,00, juros 3,94%, IOF 0,38% + 0,24%", () => {
+  const p = { ratePpm: 39400, upfrontPpm: 6200, minCents: 10000, maxParts: 12 };
+  it("com 1ª parcela em ~24 dias a estimativa fica a centavos do app", () => {
+    const r = splitPlan(19490, p, 24).find((x) => x.parts === 3)!;
+    expect(Math.abs(r.installmentCents - 7000)).toBeLessThanOrEqual(5);
+  });
+  it("1ª parcela mais longe encarece", () => {
+    const a = splitPlan(19490, p, 24)[1].installmentCents;
+    const b = splitPlan(19490, p, 36)[1].installmentCents;
+    expect(b).toBeGreaterThan(a);
+  });
+});
+
+describe("impliedRatePpm", () => {
+  it("recupera a taxa do print de R$ 194,90 (3x de 70,96)", () => {
+    const r = impliedRatePpm(19490, 3, 7096, 6500)!;
+    expect(Math.abs(r - 42010)).toBeLessThan(2500);
+  });
+  it("ida e volta com splitPlan", () => {
+    const row = splitPlan(50000, BB_SPLIT, 30).find((x) => x.parts === 6)!;
+    const r = impliedRatePpm(50000, 6, row.installmentCents, BB_SPLIT.upfrontPpm)!;
+    expect(Math.abs(r - BB_SPLIT.ratePpm)).toBeLessThan(300);
+  });
+  it("inviável devolve null", () => {
+    expect(impliedRatePpm(10000, 3, 100, 0)).toBeNull();
+    expect(impliedRatePpm(10000, 1, 12000, 0)).toBeNull();
   });
 });

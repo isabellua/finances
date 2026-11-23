@@ -43,18 +43,55 @@ export function resolveSplit(card: SplitConfig, bankSlug: string | null | undefi
 
 export type SplitRow = { parts: number; installmentCents: number; totalCents: number; extraCents: number };
 
-export function splitPlan(amountCents: number, p: SplitParams): SplitRow[] {
+/** Valor presente de 1 parcela por mês, primeira em `t0` meses (t0 = dias / 30). */
+function annuityFactor(i: number, n: number, t0: number): number {
+  let sum = 0;
+  for (let k = 0; k < n; k++) sum += Math.pow(1 + i, -(t0 + k));
+  return sum;
+}
+
+/** `daysToFirst`: dias até a 1ª parcela (padrão 30). Com 30 dias é a tabela Price clássica. */
+export function splitPlan(amountCents: number, p: SplitParams, daysToFirst = 30): SplitRow[] {
   if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents < p.minCents) return [];
   const financed = (amountCents * (1_000_000 + p.upfrontPpm)) / 1_000_000;
   const i = p.ratePpm / 1_000_000;
+  const t0 = Math.max(1, daysToFirst) / 30;
   const rows: SplitRow[] = [];
   for (let n = 2; n <= p.maxParts; n++) {
-    const raw = i === 0 ? financed / n : (financed * i) / (1 - Math.pow(1 + i, -n));
+    const raw = i === 0 ? financed / n : financed / annuityFactor(i, n, t0);
     const installmentCents = Math.round(raw);
     const totalCents = installmentCents * n;
     rows.push({ parts: n, installmentCents, totalCents, extraCents: totalCents - amountCents });
   }
   return rows;
+}
+
+/**
+ * Taxa mensal (ppm) que faz `parts` parcelas de `installmentCents` pagarem a compra
+ * (com o custo inicial dado). Serve para calibrar com o que o app do banco mostrou.
+ * null se não houver taxa >= 0 e <= 30% que feche a conta.
+ */
+export function impliedRatePpm(
+  amountCents: number,
+  parts: number,
+  installmentCents: number,
+  upfrontPpm: number,
+  daysToFirst = 30,
+): number | null {
+  if (amountCents <= 0 || installmentCents <= 0 || parts < 2) return null;
+  const financed = (amountCents * (1_000_000 + upfrontPpm)) / 1_000_000;
+  const t0 = Math.max(1, daysToFirst) / 30;
+  const pay = (i: number) => (i === 0 ? parts * installmentCents : installmentCents * annuityFactor(i, parts, t0));
+  // pay(i) = valor presente das parcelas; cai com i. Procura i com pay(i) = financiado.
+  if (pay(0) < financed || pay(0.3) > financed) return null;
+  let lo = 0;
+  let hi = 0.3;
+  for (let k = 0; k < 80; k++) {
+    const mid = (lo + hi) / 2;
+    if (pay(mid) > financed) lo = mid;
+    else hi = mid;
+  }
+  return Math.round(((lo + hi) / 2) * 1_000_000);
 }
 
 /** "4,201" / "4.2" / "4,201%" → ppm (até 4 casas decimais de %). null se inválido ou > 30%. */

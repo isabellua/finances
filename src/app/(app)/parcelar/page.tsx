@@ -2,9 +2,17 @@ import Link from "next/link";
 import { str } from "@/components/flash";
 import { Card, Empty, Field, PageHeader, btnPrimary, inputCls } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { daysBetween, formatDateBR, todayISO } from "@/lib/dates";
 import { bankOf } from "@/lib/banks";
 import { formatBRL, parseBRLToCents } from "@/lib/money";
-import { annualFromMonthlyPpm, formatPpmPercent, resolveSplit, splitPlan } from "@/lib/split";
+import {
+  annualFromMonthlyPpm,
+  formatPpmPercent,
+  impliedRatePpm,
+  parsePercentToPpm,
+  resolveSplit,
+  splitPlan,
+} from "@/lib/split";
 import type { Account, CreditCard } from "@/lib/types";
 
 export default async function ParcelarPage({ searchParams }: PageProps<"/parcelar">) {
@@ -45,10 +53,32 @@ export default async function ParcelarPage({ searchParams }: PageProps<"/parcela
   }
 
   const selected = options.find((o) => o.card.id === str(sp.cartao)) ?? options[0];
-  const p = selected.params!;
+  const base = selected.params!;
   const rawValor = str(sp.valor)?.trim() ?? "";
   const cents = rawValor === "" ? null : parseBRLToCents(rawValor);
-  const rows = cents ? splitPlan(cents, p) : [];
+
+  // Primeira parcela (data) -> dias a partir de hoje; padrão 30.
+  const today = todayISO();
+  const rawPrimeira = str(sp.primeira)?.trim() ?? "";
+  const days = /^\d{4}-\d{2}-\d{2}$/.test(rawPrimeira) ? daysBetween(today, rawPrimeira) : 30;
+  const daysOk = days >= 1 && days <= 120 ? days : 30;
+
+  // Calibração: o app do banco mostrou N parcelas de R$ X -> descobre a taxa mensal.
+  const rawParts = str(sp.n)?.trim() ?? "";
+  const rawParcela = str(sp.parcela)?.trim() ?? "";
+  const calibParts = rawParts === "" ? null : Number(rawParts);
+  const calibCents = rawParcela === "" ? null : parseBRLToCents(rawParcela);
+  const implied =
+    cents && calibParts && Number.isInteger(calibParts) && calibCents
+      ? impliedRatePpm(cents, calibParts, calibCents, base.upfrontPpm, daysOk)
+      : null;
+  const calibTried = rawParts !== "" || rawParcela !== "";
+
+  // Juros usados: o informado, senão o calibrado, senão o do cartão.
+  const rawJuros = str(sp.juros)?.trim() ?? "";
+  const jurosPpm = rawJuros === "" ? null : parsePercentToPpm(rawJuros);
+  const p = { ...base, ratePpm: jurosPpm ?? implied ?? base.ratePpm };
+  const rows = cents ? splitPlan(cents, p, daysOk) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,13 +99,41 @@ export default async function ParcelarPage({ searchParams }: PageProps<"/parcela
           <Field label="Valor da compra (R$)">
             <input name="valor" inputMode="decimal" defaultValue={rawValor} placeholder="194,90" required className={inputCls} />
           </Field>
-          <div className="flex items-end">
+          <Field label="Juros ao mês (%)" hint={`Opcional. Padrão: ${formatPpmPercent(base.ratePpm)}`}>
+            <input name="juros" inputMode="decimal" defaultValue={rawJuros} placeholder="3,94" className={inputCls} />
+          </Field>
+          <Field label="Data da 1ª parcela" hint="Opcional. Padrão: 30 dias">
+            <input name="primeira" type="date" defaultValue={rawPrimeira} className={inputCls} />
+          </Field>
+          <fieldset className="grid gap-3 rounded-lg border border-line p-3 sm:col-span-3 sm:grid-cols-2">
+            <legend className="px-1 text-sm font-medium">Calibrar com o app do banco (opcional)</legend>
+            <Field label="Nº de parcelas mostrado">
+              <input name="n" type="number" min={2} max={48} defaultValue={rawParts} className={inputCls} />
+            </Field>
+            <Field label="Valor da parcela mostrado (R$)">
+              <input name="parcela" inputMode="decimal" defaultValue={rawParcela} className={inputCls} />
+            </Field>
+          </fieldset>
+          <div className="sm:col-span-3">
             <button className={btnPrimary}>Simular</button>
           </div>
         </form>
       </Card>
 
       {rawValor !== "" && cents === null && <p className="text-sm text-neg">Valor inválido.</p>}
+      {rawJuros !== "" && jurosPpm === null && <p className="text-sm text-neg">Juros inválidos (0 a 30%).</p>}
+      {calibTried && implied === null && (
+        <p className="text-sm text-warn">
+          Não deu para calibrar: informe o valor da compra, o nº de parcelas e o valor da parcela, e confira os números.
+        </p>
+      )}
+      {implied !== null && jurosPpm === null && (
+        <p className="text-sm text-ink-muted">
+          Pelo que o app mostrou, os juros equivalem a <strong>{formatPpmPercent(implied)}% ao mês</strong> (≈{" "}
+          {annualFromMonthlyPpm(implied).toFixed(0)}% ao ano), já com {formatPpmPercent(base.upfrontPpm)}% de IOF
+          e 1ª parcela em {daysOk} dias. A tabela abaixo usa essa taxa.
+        </p>
+      )}
       {cents !== null && rows.length === 0 && (
         <p className="text-sm text-warn">
           Compras abaixo de {formatBRL(p.minCents)} não podem ser parceladas neste cartão.
@@ -106,9 +164,10 @@ export default async function ParcelarPage({ searchParams }: PageProps<"/parcela
 
       <p className="text-xs text-ink-subtle">
         Estimativa: {formatPpmPercent(p.ratePpm)}% ao mês (≈ {annualFromMonthlyPpm(p.ratePpm).toFixed(0)}% ao ano) mais{" "}
-        {formatPpmPercent(p.upfrontPpm)}% de custo inicial, financiados juntos, primeira parcela em 1 mês. No Banco do
-        Brasil esses números foram ajustados a um único print do app (compra de R$ 194,90, de 2 a 12 parcelas); o banco
-        pode mudar taxa por data ou perfil. Confira no app antes de contratar.
+        {formatPpmPercent(p.upfrontPpm)}% de IOF (0,38% fixo + diário), financiados juntos; 1ª parcela em {daysOk} dias
+        {rawPrimeira ? ` (${formatDateBR(rawPrimeira)})` : ""}. O padrão do Banco do Brasil foi ajustado a um print do
+        app; outro print, dias depois, mostrou juros menores (3,94% ao mês): o banco muda a taxa por data ou perfil.
+        Confira no app antes de contratar.
       </p>
     </div>
   );
